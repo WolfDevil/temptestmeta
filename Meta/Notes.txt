@@ -1,0 +1,15 @@
+﻿
+
+	TSoftObjectPtr<UDataTable> SquadPositionsDataTable;
+	TSoftObjectPtr<UDataTable> ActivitiesDataTable;
+	TSoftObjectPtr<UDataTable> LoreNodesDataTable;
+	TSoftObjectPtr<UDataTable> MissionNodesDataTable;
+	TSoftObjectPtr<UDataTable> LoreDataTable;
+	TSoftObjectPtr<UDataTable> TurnsDataTable;
+	TSoftObjectPtr<UDataTable> RewardsDataTable;
+	TSoftObjectPtr<UDataTable> ThreatsDataTable;
+	TSoftObjectPtr<UDataTable> SkillsDataTable;
+	TSoftObjectPtr<UDataTable> FightersDataTable;
+	TSoftObjectPtr<UDataTable> UnitTypesDataTable;
+	TSoftObjectPtr<UDataTable> TutorialsDataTable;
+	TSoftObjectPtr<UDataTable> DialoguesDataTable;

@@ -79,7 +79,7 @@ bool UMetaMapSubsystem::IsInTransition()
 	return bIsTransitionMode;
 }
 
-void UMetaMapSubsystem::SetupMap(TArray<FMetaGame_MapNodeData> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates, TArray<FName> RequiredNodesForTurn)
+void UMetaMapSubsystem::SetupMap(TArray<const FMetaGame_MapNodeData*> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates, TArray<FName> RequiredNodesForTurn)
 {
 	NodeDatas = InNodeData;
 	NodeStates = InNodeStates;
@@ -87,26 +87,26 @@ void UMetaMapSubsystem::SetupMap(TArray<FMetaGame_MapNodeData> InNodeData, TMap<
 	SpawnNodes(NodeDatas, NodeStates, RequiredNodesForTurn);
 }
 
-void UMetaMapSubsystem::StartTransition(FMetaGame_MapNodeData InSquadNodeData, FVector InEndLocation)
+void UMetaMapSubsystem::StartTransition(const FMetaGame_MapNodeData* InSquadNodeData, FVector InEndLocation)
 {
 	ClearMap();
 
 	TMap<FName, EMetaGame_MapNodeState> NodeState;
-	NodeState.Add(InSquadNodeData.ID,  EMetaGame_MapNodeState::Unlocked );
+	NodeState.Add(InSquadNodeData->ID,  EMetaGame_MapNodeState::Unlocked );
 
-	SpawnNodes(TArray<FMetaGame_MapNodeData>{InSquadNodeData}, NodeState, TArray<FName>());
+	SpawnNodes(TArray<const FMetaGame_MapNodeData*>{InSquadNodeData}, NodeState, TArray<FName>());
 
 	auto NewCurve = FInterpCurveVector();
-	NewCurve.AddPoint(0.0f, InSquadNodeData.WorldPosition);
+	NewCurve.AddPoint(0.0f, InSquadNodeData->WorldPosition);
 	NewCurve.AddPoint(1.0f, InEndLocation);
 
-	if (InSquadNodeData.TransitionPoints.Num() > 0)
+	if (InSquadNodeData->TransitionPoints.Num() > 0)
 	{
-		float Step = 1.0f / (InSquadNodeData.TransitionPoints.Num() + 1);
-		for (int i = 0; i < InSquadNodeData.TransitionPoints.Num(); i++)
+		float Step = 1.0f / (InSquadNodeData->TransitionPoints.Num() + 1);
+		for (int i = 0; i < InSquadNodeData->TransitionPoints.Num(); i++)
 		{
 			float T = Step * (i + 1);
-			NewCurve.AddPoint(T, InSquadNodeData.TransitionPoints[i]);
+			NewCurve.AddPoint(T, InSquadNodeData->TransitionPoints[i]);
 		}
 	}
 
@@ -137,7 +137,7 @@ UMetaGame_NodeAction_Base* UMetaMapSubsystem::GetNodeActionInstance(FName ID)
 	return NodeAction;
 }
 
-void UMetaMapSubsystem::SpawnNodes(TArray<FMetaGame_MapNodeData> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates,
+void UMetaMapSubsystem::SpawnNodes(TArray<const FMetaGame_MapNodeData*> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates,
                                    TArray<FName> RequiredNodesForTurn)
 {
 	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
@@ -145,64 +145,24 @@ void UMetaMapSubsystem::SpawnNodes(TArray<FMetaGame_MapNodeData> InNodeData, TMa
 
 	for (auto Node : InNodeData)
 	{
-		auto State = InNodeStates.Find(Node.ID);
+		auto State = InNodeStates.Find(Node->ID);
 
-		FVector Location = Node.WorldPosition;
+		FVector Location = Node->WorldPosition;
 		FRotator Rotation(0.0f, 0.0f, 0.0f);
 		FActorSpawnParameters SpawnInfo;
 		auto Actor = GetWorld()->SpawnActor<AMetaGame_MapNodeActor>(Class, Location, Rotation, SpawnInfo);
-		Actor->InitNode(Node, *State, RequiredNodesForTurn.Contains(Node.ID));
+		Actor->InitNode(*Node, *State, RequiredNodesForTurn.Contains(Node->ID));
 		SpawnedNodes.Add(Actor);
 
-		if (Node.NodeActionDataClass)
+		if (Node->NodeActionDataClass)
 		{
-			UMetaGame_NodeAction_Base* Instance = NewObject<UMetaGame_NodeAction_Base>(this, Node.NodeActionDataClass);
-			if (Instance && Node.NodeActionDataAsset)
+			UMetaGame_NodeAction_Base* Instance = NewObject<UMetaGame_NodeAction_Base>(this, Node->NodeActionDataClass);
+			if (Instance && Node->NodeActionDataAsset)
 			{
-				Instance->InitWithData(Node.ID, Node.NodeActionDataAsset);
+				Instance->InitWithData(Node->ID, Node->NodeActionDataAsset);
 			}
 
-			NodeActionInstances.Add(Node.ID, Instance);
-		}
-	}
-}
-
-void UMetaMapSubsystem::DrawConnections(TArray<FMetaGame_MapNodeData> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates, float DeltaTime)
-{
-	for (auto Node : InNodeData)
-	{
-		if (Node.NodeType == EMetaGame_MapNodeType::SquadPosition && !Node.bIsMinorNode)
-		{
-			for (auto SecondNode : InNodeData)
-			{
-				if (SecondNode.ID == Node.ID) continue;
-				if (SecondNode.RequiredNodeIDs.Num() > 0) continue;
-				if (FMath::Abs(Node.TurnIndex - SecondNode.TurnIndex) > 1) continue;
-				DrawDebugLine(GetWorld(), Node.WorldPosition, SecondNode.WorldPosition, FColor::FromHex("EB6139"), false, DeltaTime, 0, 16);
-			}
-		}
-		else
-		{
-			for (auto RequiredNodeID : Node.RequiredNodeIDs)
-			{
-				auto RequiredNode = *InNodeData.FindByPredicate([RequiredNodeID](const FMetaGame_MapNodeData& Data)
-				{
-					return Data.ID == RequiredNodeID;
-				});
-				DrawDebugLine(GetWorld(), Node.WorldPosition, RequiredNode.WorldPosition, FColor::FromHex("EB6139"), false, DeltaTime, 0, 16);
-			}
-
-			if (Node.bIsMinorNode && Node.NodeType == EMetaGame_MapNodeType::SquadPosition)
-			{
-				for (auto SecondNode : InNodeData)
-				{
-					if (SecondNode.ID == Node.ID) continue;
-					if (SecondNode.NodeType != EMetaGame_MapNodeType::SquadPosition) continue;
-					if (!SecondNode.bIsMinorNode) continue;
-					if (FMath::Abs(Node.TurnIndex - SecondNode.TurnIndex) > 1) continue;
-					DrawDebugLine(GetWorld(), Node.WorldPosition, SecondNode.WorldPosition, FColor::FromHex("EB6139"), false, DeltaTime, 0, 16);
-				}
-			}
+			NodeActionInstances.Add(Node->ID, Instance);
 		}
 	}
 }

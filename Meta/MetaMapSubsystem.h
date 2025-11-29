@@ -32,11 +32,10 @@ public:
 
 	bool IsInTransition();
 
-	UFUNCTION(BlueprintCallable)
-	void SetupMap(TArray<FMetaGame_MapNodeData> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates, TArray<FName> RequiredNodesForTurn);
+	void SetupMap(TArray<const FMetaGame_MapNodeData*> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates, TArray<FName> RequiredNodesForTurn);
 
-	UFUNCTION(BlueprintCallable)
-	void StartTransition(FMetaGame_MapNodeData InSquadNodeData, FVector InEndLocation);
+	// UFUNCTION(BlueprintCallable)
+	void StartTransition(const FMetaGame_MapNodeData* InSquadNodeData, FVector InEndLocation);
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateNodeState(FName ID, EMetaGame_MapNodeState State);
@@ -49,11 +48,10 @@ public:
 
 private:
 	// void OnNodeClicked(FName ID);
-	void SpawnNodes(TArray<FMetaGame_MapNodeData> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates, TArray<FName> RequiredNodesForTurn);
-	void DrawConnections(TArray<FMetaGame_MapNodeData> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates, float DeltaTime);
+	void SpawnNodes(TArray<const FMetaGame_MapNodeData*> InNodeData, TMap<FName, EMetaGame_MapNodeState> InNodeStates, TArray<FName> RequiredNodesForTurn);
 	void ClearMap();
 
-	TArray<FMetaGame_MapNodeData> NodeDatas;
+	TArray<const FMetaGame_MapNodeData*> NodeDatas;
 	TMap<FName, EMetaGame_MapNodeState> NodeStates;
 
 	UPROPERTY()

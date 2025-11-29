@@ -9,6 +9,7 @@
 #include "Data/NodeActions/Mission/MetaGame_NodeAction_Mission.h"
 #include "Data/NodeActions/Mission/MetaGame_NodeAction_MissionData.h"
 #include "Kismet/GameplayStatics.h"
+#include "Managers/UMetaGame_DataManager.h"
 #include "T01/Core/Gameplay/T01GameInstance.h"
 #include "T01/Core/Settings/Meta/MetaGameSettings.h"
 #include "T01/Core/Subsystem/Savegame/T01Save.h"
@@ -102,7 +103,14 @@ void UMetaGameSubsystem::OnMetaGameModeLoaded()
 void UMetaGameSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	
+
+	//Modules
+	DataManager = NewObject<UMetaGame_DataManager>(this, TEXT("MetaDataManager"));
+
+	DataManager->Initialize();
+
+
+	//Other
 	Collection.InitializeDependency<UPoolSubsystem>();
 	MetaMapSubsystem = Collection.InitializeDependency<UMetaMapSubsystem>();
 
@@ -382,7 +390,6 @@ void UMetaGameSubsystem::UpdateMap()
 	if (MetaMapSubsystem == nullptr) return;
 
 	auto Turns = GetAllTurns();
-	auto SquadPositions = GetAllSquadPositions();
 
 	auto Activities = GetAllActivities();
 	Activities.Append(GetAllLoreNodes());
@@ -393,38 +400,32 @@ void UMetaGameSubsystem::UpdateMap()
 	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
 
 
-	TArray<FMetaGame_MapNodeData> MapNodes;
+	TArray<const FMetaGame_MapNodeData*> MapNodes;
 	FName SquadPosNodeID = CurrentTurnData.SquadPositionNodeID;
 
-	auto SquadNode = *SquadPositions.FindByPredicate([SquadPosNodeID](const FMetaGame_MapNodeData& NodeData)
-	{
-		return NodeData.ID == SquadPosNodeID;
-	});
-	SquadNode.TurnIndex = CurrentTurnIndex;
-	SquadNode.bIsMinorNode = false;
+	if (DataManager == nullptr) return;
+	const FMetaGame_MapNodeData* SquadNode = DataManager->GetSquadPosition(SquadPosNodeID);
+	if (SquadNode == nullptr) return;
+	
 	MapNodes.Add(SquadNode);
 
 
-	if (SquadNode.bShowHead)
+	if (SquadNode->bShowHead)
 	{
 		if (Turns.Num() - 1 >= CurrentTurnIndex + 1)
 		{
 			FMetaGame_TurnData HeadTurnData = Turns[CurrentTurnIndex + 1];
 
 			FName SquadPosID = HeadTurnData.SquadPositionNodeID;
-			auto HeadSquadNode = *SquadPositions.FindByPredicate([SquadPosID](const FMetaGame_MapNodeData& NodeData)
-			{
-				return NodeData.ID == SquadPosID;
-			});
-
-			HeadSquadNode.TurnIndex = CurrentTurnIndex + 1;
-			HeadSquadNode.bIsMinorNode = true;
+			if (DataManager == nullptr) return;
+			const FMetaGame_MapNodeData* HeadSquadNode = DataManager->GetSquadPosition(SquadPosID);
+			if (HeadSquadNode == nullptr) return;
 			MapNodes.Add(HeadSquadNode);
 		}
 	}
 
 
-	if (SquadNode.bShowTail)
+	if (SquadNode->bShowTail)
 	{
 		int TurnIndex = CurrentTurnIndex - 1;
 
@@ -434,14 +435,10 @@ void UMetaGameSubsystem::UpdateMap()
 			{
 				FMetaGame_TurnData TailTurnData = Turns[TurnIndex];
 				FName SquadPosID = TailTurnData.SquadPositionNodeID;
-				auto TailSquadNode = *SquadPositions.FindByPredicate([SquadPosID](const FMetaGame_MapNodeData& NodeData)
-				{
-					return NodeData.ID == SquadPosID;
-				});
-
-				TailSquadNode.bIsMinorNode = true;
-				TailSquadNode.TurnIndex = TurnIndex;
-				MapNodes.Add(TailSquadNode);
+				if (DataManager == nullptr) return;
+				const FMetaGame_MapNodeData* TailHeadSquadNode = DataManager->GetSquadPosition(SquadPosID);
+				if (TailHeadSquadNode == nullptr) return;
+				MapNodes.Add(TailHeadSquadNode);
 			}
 
 			TurnIndex--;
@@ -459,7 +456,7 @@ void UMetaGameSubsystem::UpdateMap()
 		if (ActivityNodeData != nullptr)
 		{
 			ActivityNodeData->TurnIndex = CurrentTurnIndex;
-			MapNodes.Add(*ActivityNodeData);
+			MapNodes.Add(ActivityNodeData);
 		}
 	}
 
@@ -467,9 +464,9 @@ void UMetaGameSubsystem::UpdateMap()
 	for (auto Node : MapNodes)
 	{
 		auto NewState = EMetaGame_MapNodeState::Unlocked;
-		if (Node.RequiredNodeIDs.Num() > 0)
+		if (Node->RequiredNodeIDs.Num() > 0)
 		{
-			for (auto ReqID : Node.RequiredNodeIDs)
+			for (auto ReqID : Node->RequiredNodeIDs)
 			{
 				if (NodeStates[ReqID] != EMetaGame_MapNodeState::Completed)
 				{
@@ -479,16 +476,16 @@ void UMetaGameSubsystem::UpdateMap()
 			}
 		}
 
-		if (NodeStates.Contains(Node.ID))
+		if (NodeStates.Contains(Node->ID))
 		{
-			if (NodeStates[Node.ID] == EMetaGame_MapNodeState::Locked || NodeStates[Node.ID] == EMetaGame_MapNodeState::Unlocked)
+			if (NodeStates[Node->ID] == EMetaGame_MapNodeState::Locked || NodeStates[Node->ID] == EMetaGame_MapNodeState::Unlocked)
 			{
-				NodeStates[Node.ID] = NewState;
+				NodeStates[Node->ID] = NewState;
 			}
 		}
 		else
 		{
-			NodeStates.Add(Node.ID, NewState);
+			NodeStates.Add(Node->ID, NewState);
 		}
 	}
 
@@ -1077,34 +1074,24 @@ void UMetaGameSubsystem::PerformNextTurn()
 	ActionsToResolve.Empty();
 
 	auto Turns = GetAllTurns();
-	auto SquadPositions = GetAllSquadPositions();
 
 	if (Turns.Num() - 1 < CurrentTurnIndex) return;
 	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
 
 	FName SquadPosNodeID = CurrentTurnData.SquadPositionNodeID;
 
-	const auto SquadNode = SquadPositions.FindByPredicate([SquadPosNodeID](const FMetaGame_MapNodeData& NodeData)
-	{
-		return NodeData.ID == SquadPosNodeID;
-	});
+	if (DataManager == nullptr) return;
+	auto SquadNode = DataManager->GetSquadPosition(SquadPosNodeID);
 	if (SquadNode == nullptr) return;
-
-	SquadNode->TurnIndex = CurrentTurnIndex;
-	SquadNode->bIsMinorNode = false;
 
 	if (Turns.Num() - 1 < CurrentTurnIndex + 1) return;
 	FMetaGame_TurnData HeadTurnData = Turns[CurrentTurnIndex + 1];
 
 	FName NextSquadPosID = HeadTurnData.SquadPositionNodeID;
-	const auto HeadSquadNode = SquadPositions.FindByPredicate([NextSquadPosID](const FMetaGame_MapNodeData& NodeData)
-	{
-		return NodeData.ID == NextSquadPosID;
-	});
-	if (HeadSquadNode == nullptr) return;
 
-	HeadSquadNode->TurnIndex = CurrentTurnIndex + 1;
-	HeadSquadNode->bIsMinorNode = true;
+	if (DataManager == nullptr) return;
+	auto HeadSquadNode = DataManager->GetSquadPosition(NextSquadPosID);
+	if (HeadSquadNode == nullptr) return;
 
 
 	TWeakObjectPtr<UMetaGameSubsystem> WeakThis(this);
@@ -1120,7 +1107,7 @@ void UMetaGameSubsystem::PerformNextTurn()
 	CurrentTurnIndex++;
 	OnTurnChanged.Broadcast();
 	OnTurnChangedDynamic.Broadcast();
-	MetaMapSubsystem->StartTransition(*SquadNode, HeadSquadNode->WorldPosition);
+	MetaMapSubsystem->StartTransition(SquadNode, HeadSquadNode->WorldPosition);
 }
 
 void UMetaGameSubsystem::NextTurnOnStart()
@@ -1770,20 +1757,4 @@ TArray<FMetaGame_MapNodeData> UMetaGameSubsystem::GetAllMissionNodes() const
 		if (LoreNodePtr != nullptr) MissionNodes.Add(*LoreNodePtr);
 	}
 	return MissionNodes;
-}
-
-TArray<FMetaGame_MapNodeData> UMetaGameSubsystem::GetAllSquadPositions() const
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto SquadNodesDT = MetaGameSettings->SquadPositionsDataTable.LoadSynchronous();
-
-	if (SquadNodesDT == nullptr) return TArray<FMetaGame_MapNodeData>();
-	TArray<FMetaGame_MapNodeData*> SquadPosNodesPtrs;
-	SquadNodesDT->GetAllRows<FMetaGame_MapNodeData>(TEXT("::SetupMap"), SquadPosNodesPtrs);
-	TArray<FMetaGame_MapNodeData> SquadPositions;
-	for (const auto SquadPosPtr : SquadPosNodesPtrs)
-	{
-		if (SquadPosPtr != nullptr) SquadPositions.Add(*SquadPosPtr);
-	}
-	return SquadPositions;
 }

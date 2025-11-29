@@ -23,12 +23,15 @@
 
 #include "MetaGameSubsystem.generated.h"
 
+class UMetaGame_DataManager;
 DECLARE_MULTICAST_DELEGATE(FMetaGameSubsystemStaticDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMetaGameSubsystemDynamicDelegate);
 
 UCLASS()
 class T01_API UMetaGameSubsystem : public UWorldSubsystem, public ISaveable
 {
+	GENERATED_BODY()
+	
 public:
 	virtual bool CanBeSaved(FString& FailureReason) const override;
 	virtual void Save(UT01Save* SaveObject, void* ParentObject) override;
@@ -43,7 +46,8 @@ public:
 	void OnMetaGameModeLoaded();
 
 private:
-	GENERATED_BODY()
+	UPROPERTY()
+	TObjectPtr<UMetaGame_DataManager> DataManager;
 	bool bIsInitialized = false;
 
 public:
@@ -71,6 +75,10 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+
+	// Геттер для менеджера (если другим классам нужен прямой доступ)
+	UFUNCTION(BlueprintCallable, Category = "Meta|Data")
+	UMetaGame_DataManager* GetDataManager() const { return DataManager; }
 
 	void ApplyMetaProgressionSave(FT01SaveModule_MetaProgression Progression);
 
@@ -344,5 +352,4 @@ private:
 	
 	TArray<FMetaGame_MapNodeData> GetAllMissionNodes() const;
 
-	TArray<FMetaGame_MapNodeData> GetAllSquadPositions() const;
 };
