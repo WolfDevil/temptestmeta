@@ -102,12 +102,7 @@ void UMetaGameSubsystem::OnMetaGameModeLoaded()
 void UMetaGameSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Green, "UMetaGameSubsystem::Initialize");
-
-	UWorld* World = GetTypedOuter<UWorld>();
-	// World->GetMapName();
-	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Green, World->GetMapName());
-
+	
 	Collection.InitializeDependency<UPoolSubsystem>();
 	MetaMapSubsystem = Collection.InitializeDependency<UMetaMapSubsystem>();
 
@@ -236,7 +231,7 @@ TArray<FMetaGame_FighterData> UMetaGameSubsystem::GetAvailableFighters(FName Act
 {
 	TArray<FMetaGame_FighterData> Fighters;
 	Fighters = GetTurnFighters();
-	TArray<FMetaGame_FighterData> FightersToExсlude;
+	TArray<FMetaGame_FighterData> FightersToExclude;
 
 	for (auto Fighter : LockedUnitsForOneTurn)
 	{
@@ -247,7 +242,7 @@ TArray<FMetaGame_FighterData> UMetaGameSubsystem::GetAvailableFighters(FName Act
 		});
 		if (FoundFighter != nullptr)
 		{
-			FightersToExсlude.AddUnique(*FoundFighter);
+			FightersToExclude.AddUnique(*FoundFighter);
 		}
 	}
 
@@ -256,11 +251,11 @@ TArray<FMetaGame_FighterData> UMetaGameSubsystem::GetAvailableFighters(FName Act
 		if (ActivityID == Activity.ID) continue;
 		for (auto FighterData : Activity.FightersData)
 		{
-			FightersToExсlude.AddUnique(FighterData);
+			FightersToExclude.AddUnique(FighterData);
 		}
 	}
 
-	for (auto Fighter : FightersToExсlude)
+	for (auto Fighter : FightersToExclude)
 	{
 		Fighters.Remove(Fighter);
 	}

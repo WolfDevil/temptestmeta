@@ -12,7 +12,7 @@ AMetaGame_MapNodeActor::AMetaGame_MapNodeActor()
 {
 	WidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("Widget"));
 	RootComponent = WidgetComponent;
-	WidgetComponent->SetDrawSize(FVector2D(WidgetDefaiultSize, WidgetDefaiultSize));
+	WidgetComponent->SetDrawSize(FVector2D(WidgetDefaultSize, WidgetDefaultSize));
 	WidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
 	WidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
@@ -61,7 +61,7 @@ void AMetaGame_MapNodeActor::UpdateNode()
 
 void AMetaGame_MapNodeActor::UpdateScale(float NewMultiplier)
 {
-	WidgetComponent->SetDrawSize(FVector2D(WidgetDefaiultSize * NewMultiplier, WidgetDefaiultSize * NewMultiplier));
+	WidgetComponent->SetDrawSize(FVector2D(WidgetDefaultSize * NewMultiplier, WidgetDefaultSize * NewMultiplier));
 }
 
 void AMetaGame_MapNodeActor::OnClicked()

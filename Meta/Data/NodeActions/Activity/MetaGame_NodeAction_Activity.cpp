@@ -153,7 +153,7 @@ void UMetaGame_NodeAction_Activity::PrepareUIRewardsData(
 			RequiredThreats.AddUnique(Thr.Key);
 		}
 	}
-	
+
 	bool bAllThreatsPassed = true;
 	for (const auto& Threat : Data->Threats)
 	{
@@ -178,7 +178,7 @@ void UMetaGame_NodeAction_Activity::PrepareUIRewardsData(
 			bAllThreatsPassed = false;
 		}
 	}
-	
+
 	ThreatRewards.Empty();
 	ThreatRewards = Data->Rewards;
 	BonusReward = Data->BonusReward;
@@ -192,7 +192,7 @@ void UMetaGame_NodeAction_Activity::PrepareUIRewardsData(
 			AllRequiredPassed = false;
 		}
 	}
-		
+
 	IsRequiredThreatsPassed = AllRequiredPassed;
 	BonusConditionMet = Data->BonusReward.Type == EMetaGame_BonusRewardType::AllThreatsClosed && bAllThreatsPassed;
 }
@@ -226,40 +226,6 @@ void UMetaGame_NodeAction_Activity::PrepareUIThreatsData(const TArray<FMetaGame_
 	Threats.Empty();
 	Threats = Data->Threats;
 }
-
-
-// TMap<FName, int> UMetaGame_NodeAction_Activity::GetFightersSkillSum(const TArray<FMetaGame_FighterData>& Fighters) const
-// {
-// 	TMap<FName, int> SkillSums;
-//
-// 	TArray<FName> FightersSkills;
-// 	for (auto Fighter : Fighters)
-// 	{
-// 		for (auto Skill : Fighter.Skills)
-// 		{
-// 			FightersSkills.AddUnique(Skill.Key);
-// 		}
-// 	}
-//
-// 	for (const auto& Skill : FightersSkills)
-// 	{
-// 		int32 SkillSum = 0;
-// 		for (const FMetaGame_FighterData& Fighter : Fighters)
-// 		{
-// 			SkillSum += Fighter.GetSkillByThreat(Skill);
-// 		}
-//
-// 		if (SkillSums.Contains(Skill))
-// 		{
-// 			SkillSums[Skill] = SkillSum;
-// 		}
-// 		else
-// 		{
-// 			SkillSums.Add(Skill, SkillSum);
-// 		}
-// 	}
-// 	return SkillSums;
-// }
 
 bool UMetaGame_NodeAction_Activity::IsFightersHasResolvingSkill(FName RequiredSkill, int32 RequiredLevel, const TArray<FMetaGame_FighterData>& Fighters) const
 {

@@ -1,7 +1,7 @@
 #pragma once
 #include "MetaMapSubsystem.h"
 #include "Actors/AMetaGame_RangerInventory.h"
-#include "Actors/MetaGame_StorageInventory.h"
+#include "Actors/AMetaGame_StorageInventory.h"
 #include "Data/EMetaGame_NextTurnStatus.h"
 #include "Data/MetaGame_PreparedActionData.h"
 #include "Data/MetaGame_FighterData.h"
@@ -177,7 +177,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void CloseTutorialWidget();
 
-	// Dualogues UI
+	// Dialogues UI
 	
 	UFUNCTION(BlueprintCallable)
 	void ShowDialogue(FName DialogueID);

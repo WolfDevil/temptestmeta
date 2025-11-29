@@ -38,9 +38,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void PrepareUIThreatsData(const TArray<FMetaGame_FighterData>& Fighters, TMap<FName, bool>& Threats, TArray<FName>& ClosedThreats);
 
-	// UFUNCTION(BlueprintCallable)
-	// TMap<FName, int> GetFightersSkillSum(const TArray<FMetaGame_FighterData>& Fighters) const;
-
 	UFUNCTION(BlueprintCallable)
 	bool IsFightersHasResolvingSkill(FName RequiredSkill, int32 RequiredLevel, const TArray<FMetaGame_FighterData>& Fighters) const;
 

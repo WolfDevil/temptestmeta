@@ -37,7 +37,7 @@ protected:
 
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	int WidgetDefaiultSize;
+	int WidgetDefaultSize;
 
 	UPROPERTY(VisibleAnywhere)
 	UWidgetComponent* WidgetComponent;

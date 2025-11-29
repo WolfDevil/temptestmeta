@@ -31,7 +31,4 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Category = "Activity | Threats"))
 	TMap<FName, bool> Threats;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Category = "Activity | Threats"))
-	int MinThreatsRequired = -1;
 };
