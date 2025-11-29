@@ -29,14 +29,60 @@ void UMetaGame_DataManager::Initialize()
 
 	LoadedTables.Empty();
 	CachedSquadPositions.Empty();
+	CachedActivityNodes.Empty();
+	CachedLoreNodes.Empty();
+	CachedMissionNodes.Empty();
 
-	CacheDataTable<FMetaGame_MapNodeData>(Settings->SquadPositionsDataTable, CachedSquadPositions, "SquadPositions");
+	CacheDataTable<FMetaGame_MapNodeData>(Settings->SquadPositionsDataTable, CachedSquadPositions, "SquadPositionsNodes");
+	CacheDataTable<FMetaGame_MapNodeData>(Settings->ActivitiesDataTable, CachedActivityNodes, "ActivityNodes");
+	CacheDataTable<FMetaGame_MapNodeData>(Settings->LoreNodesDataTable, CachedLoreNodes, "LoreNodes");
+	CacheDataTable<FMetaGame_MapNodeData>(Settings->MissionNodesDataTable, CachedMissionNodes, "MissionNodes");
 }
 
 const FMetaGame_MapNodeData* UMetaGame_DataManager::GetSquadPosition(FName ID) const
 {
 	if (ID.IsNone()) return nullptr;
 	const FMetaGame_MapNodeData* const* Found = CachedSquadPositions.Find(ID);
+	return Found ? *Found : nullptr;
+}
+
+bool UMetaGame_DataManager::IsActivityNodesContainsID(FName ID) const
+{
+	if (ID.IsNone()) return false;
+	return CachedActivityNodes.Contains(ID);
+}
+
+const FMetaGame_MapNodeData* UMetaGame_DataManager::GetActivityNode(FName ID) const
+{
+	if (ID.IsNone()) return nullptr;
+	const FMetaGame_MapNodeData* const* Found = CachedActivityNodes.Find(ID);
+	return Found ? *Found : nullptr;
+}
+
+bool UMetaGame_DataManager::IsLoreNodesContainsID(FName ID) const
+{
+	if (ID.IsNone()) return false;
+	return CachedLoreNodes.Contains(ID);
+}
+
+const FMetaGame_MapNodeData* UMetaGame_DataManager::GetLoreNode(FName ID) const
+{
+	if (ID.IsNone()) return nullptr;
+	const FMetaGame_MapNodeData* const* Found = CachedLoreNodes.Find(ID);
+	return Found ? *Found : nullptr;
+}
+
+bool UMetaGame_DataManager::IsMissionNodesContainsID(FName ID) const
+{
+	if (ID.IsNone()) return false;
+	return CachedMissionNodes.Contains(ID);
+}
+
+
+const FMetaGame_MapNodeData* UMetaGame_DataManager::GetMissionNode(FName ID) const
+{
+	if (ID.IsNone()) return nullptr;
+	const FMetaGame_MapNodeData* const* Found = CachedMissionNodes.Find(ID);
 	return Found ? *Found : nullptr;
 }
 

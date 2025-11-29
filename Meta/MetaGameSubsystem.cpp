@@ -387,13 +387,15 @@ void UMetaGameSubsystem::RemoveGottenRewardNotificationFromLastTurn()
 
 void UMetaGameSubsystem::UpdateMap()
 {
+	ensure(DataManager);
+
 	if (MetaMapSubsystem == nullptr) return;
 
 	auto Turns = GetAllTurns();
 
-	auto Activities = GetAllActivities();
-	Activities.Append(GetAllLoreNodes());
-	Activities.Append(GetAllMissionNodes());
+	// auto Activities = GetAllActivities();
+	// Activities.Append(GetAllLoreNodes());
+	// Activities.Append(GetAllMissionNodes());
 
 
 	if (Turns.Num() - 1 < CurrentTurnIndex) return;
@@ -403,7 +405,7 @@ void UMetaGameSubsystem::UpdateMap()
 	TArray<const FMetaGame_MapNodeData*> MapNodes;
 	FName SquadPosNodeID = CurrentTurnData.SquadPositionNodeID;
 
-	if (DataManager == nullptr) return;
+
 	const FMetaGame_MapNodeData* SquadNode = DataManager->GetSquadPosition(SquadPosNodeID);
 	if (SquadNode == nullptr) return;
 
@@ -417,7 +419,6 @@ void UMetaGameSubsystem::UpdateMap()
 			FMetaGame_TurnData HeadTurnData = Turns[CurrentTurnIndex + 1];
 
 			FName SquadPosID = HeadTurnData.SquadPositionNodeID;
-			if (DataManager == nullptr) return;
 			const FMetaGame_MapNodeData* HeadSquadNode = DataManager->GetSquadPosition(SquadPosID);
 			if (HeadSquadNode == nullptr) return;
 			MapNodes.Add(HeadSquadNode);
@@ -435,7 +436,6 @@ void UMetaGameSubsystem::UpdateMap()
 			{
 				FMetaGame_TurnData TailTurnData = Turns[TurnIndex];
 				FName SquadPosID = TailTurnData.SquadPositionNodeID;
-				if (DataManager == nullptr) return;
 				const FMetaGame_MapNodeData* TailHeadSquadNode = DataManager->GetSquadPosition(SquadPosID);
 				if (TailHeadSquadNode == nullptr) return;
 				MapNodes.Add(TailHeadSquadNode);
@@ -445,18 +445,29 @@ void UMetaGameSubsystem::UpdateMap()
 		}
 	}
 
-
-	for (auto NodeID : CurrentTurnData.AvailableNodeIDs)
+	if (DataManager != nullptr)
 	{
-		auto ActivityNodeData = Activities.FindByPredicate([NodeID](const FMetaGame_MapNodeData& NodeData)
+		for (auto NodeID : CurrentTurnData.AvailableNodeIDs)
 		{
-			return NodeData.ID == NodeID;
-		});
+			auto ActivityNodeData = DataManager->GetActivityNode(NodeID);
+			if (ActivityNodeData != nullptr)
+			{
+				MapNodes.Add(ActivityNodeData);
+				continue;
+			}
 
-		if (ActivityNodeData != nullptr)
-		{
-			// ActivityNodeData->TurnIndex = CurrentTurnIndex;
-			MapNodes.Add(ActivityNodeData);
+			auto MissionNodeData = DataManager->GetMissionNode(NodeID);
+			if (MissionNodeData != nullptr)
+			{
+				MapNodes.Add(MissionNodeData);
+				continue;
+			}
+
+			auto LoreNodeData = DataManager->GetLoreNode(NodeID);
+			if (LoreNodeData != nullptr)
+			{
+				MapNodes.Add(LoreNodeData);
+			}
 		}
 	}
 
@@ -858,29 +869,22 @@ void UMetaGameSubsystem::IgnoreNotAssignedActivities()
 
 void UMetaGameSubsystem::StartMission()
 {
-	auto Missions = GetAllMissionNodes();
+	ensure(DataManager);
 	FMetaGame_PreparedActionData ActionData;
 
-	for (auto& Action : ActionsToResolve)
+	for (const auto& Action : ActionsToResolve)
 	{
-		bool IsMission = Missions.ContainsByPredicate([Action](const FMetaGame_MapNodeData Data)
-		{
-			return Data.ID == Action.ID;
-		});
-		if (IsMission)
+		if (DataManager->IsMissionNodesContainsID(Action.ID))
 		{
 			ActionData = Action;
 			break;
 		}
 	}
 
-	if (ActionData.ID.IsNone()) return;
-	auto MissionNodeData = Missions.FindByPredicate([ActionData](const FMetaGame_MapNodeData& Data)
-	{
-		return Data.ID == ActionData.ID;
-	});
-	if (MissionNodeData == nullptr) return;
+	if (!DataManager->IsMissionNodesContainsID(ActionData.ID)) return;
 
+	const auto MissionNodeData = DataManager->GetMissionNode(ActionData.ID);
+	if (MissionNodeData == nullptr) return;
 
 	RequestedNextTurn = true;
 	ActionsToResolve.Remove(ActionData);
@@ -1069,6 +1073,8 @@ void UMetaGameSubsystem::NextTurnClicked()
 
 void UMetaGameSubsystem::PerformNextTurn()
 {
+	ensure(DataManager);
+
 	RequestedNextTurn = false;
 	LockedUnitsForOneTurn.Empty();
 	ActionsToResolve.Empty();
@@ -1080,7 +1086,6 @@ void UMetaGameSubsystem::PerformNextTurn()
 
 	FName SquadPosNodeID = CurrentTurnData.SquadPositionNodeID;
 
-	if (DataManager == nullptr) return;
 	auto SquadNode = DataManager->GetSquadPosition(SquadPosNodeID);
 	if (SquadNode == nullptr) return;
 
@@ -1089,7 +1094,6 @@ void UMetaGameSubsystem::PerformNextTurn()
 
 	FName NextSquadPosID = HeadTurnData.SquadPositionNodeID;
 
-	if (DataManager == nullptr) return;
 	auto HeadSquadNode = DataManager->GetSquadPosition(NextSquadPosID);
 	if (HeadSquadNode == nullptr) return;
 
@@ -1118,29 +1122,19 @@ void UMetaGameSubsystem::NextTurnOnStart()
 
 EMetaGame_NextTurnStatus UMetaGameSubsystem::GetNextTurnStatus()
 {
+	ensure(DataManager);
+
 	TArray<FMetaGame_TurnData> Turns = GetAllTurns();
 	if (Turns.Num() - 1 < CurrentTurnIndex) return EMetaGame_NextTurnStatus::NoMoreTurns;
 	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
-
-	auto AllMissions = GetAllMissionNodes();
-	auto AllActivities = GetAllActivities();
 
 	TArray<FName> MissionIDs = TArray<FName>();
 	TArray<FName> ActivityIDs = TArray<FName>();
 
 	for (auto& AvailableNode : CurrentTurnData.AvailableNodeIDs)
 	{
-		const bool IsMission = AllMissions.ContainsByPredicate([AvailableNode](const FMetaGame_MapNodeData& Data)
-		{
-			return Data.ID == AvailableNode;
-		});
-		if (IsMission) MissionIDs.AddUnique(AvailableNode);
-
-		const bool IsActivity = AllActivities.ContainsByPredicate([AvailableNode](const FMetaGame_MapNodeData& Data)
-		{
-			return Data.ID == AvailableNode;
-		});
-		if (IsActivity) ActivityIDs.AddUnique(AvailableNode);
+		if (DataManager->IsMissionNodesContainsID(AvailableNode)) MissionIDs.AddUnique(AvailableNode);
+		if (DataManager->IsActivityNodesContainsID(AvailableNode)) ActivityIDs.AddUnique(AvailableNode);
 	}
 
 	bool AllMissionsPrepared = true;
@@ -1172,17 +1166,13 @@ EMetaGame_NextTurnStatus UMetaGameSubsystem::GetNextTurnStatus()
 
 bool UMetaGameSubsystem::IsCurrentTurnHasMission()
 {
+	ensure(DataManager);
 	TArray<FMetaGame_TurnData> Turns = GetAllTurns();
 	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
-	const auto AllMissions = GetAllMissionNodes();
 
-	for (auto& AvailableNode : CurrentTurnData.AvailableNodeIDs)
+	for (const auto& AvailableNode : CurrentTurnData.AvailableNodeIDs)
 	{
-		const bool IsMission = AllMissions.ContainsByPredicate([AvailableNode](const FMetaGame_MapNodeData& Data)
-		{
-			return Data.ID == AvailableNode;
-		});
-		if (IsMission) return true;
+		if (DataManager->IsMissionNodesContainsID(AvailableNode)) return true;
 	}
 	return false;
 }
@@ -1466,6 +1456,7 @@ void UMetaGameSubsystem::OnLoreScenarioClick(FName LoreID, FMetaGame_LoreScenari
 			}
 			break;
 		}
+	default: break;
 	}
 
 	CloseLoreUI();
@@ -1475,20 +1466,23 @@ void UMetaGameSubsystem::OnLoreScenarioClick(FName LoreID, FMetaGame_LoreScenari
 
 FMetaGame_MapNodeData UMetaGameSubsystem::GetNodeData(FName ID) const
 {
-	auto AllActivities = GetAllActivities();
-	const auto Activity = AllActivities.FindByPredicate([ID](const FMetaGame_MapNodeData& NodeData)
+	if (DataManager != nullptr)
 	{
-		return NodeData.ID == ID;
-	});
-	if (Activity != nullptr) return *Activity;
+		if (const auto ActivityNodeData = DataManager->GetActivityNode(ID); ActivityNodeData != nullptr)
+		{
+			return *ActivityNodeData;
+		}
 
-	auto AllMissions = GetAllMissionNodes();
-	const auto Mission = AllMissions.FindByPredicate([ID](const FMetaGame_MapNodeData& NodeData)
-	{
-		return NodeData.ID == ID;
-	});
-	if (Mission != nullptr) return *Mission;
+		if (const auto MissionNodeData = DataManager->GetMissionNode(ID); MissionNodeData != nullptr)
+		{
+			return *MissionNodeData;
+		}
 
+		if (const auto LoreNodeData = DataManager->GetLoreNode(ID); LoreNodeData != nullptr)
+		{
+			return *LoreNodeData;
+		}
+	}
 
 	return FMetaGame_MapNodeData();
 }
@@ -1714,52 +1708,4 @@ TArray<FMetaGame_TurnData> UMetaGameSubsystem::GetAllTurns() const
 	}
 
 	return Turns;
-}
-
-TArray<FMetaGame_MapNodeData> UMetaGameSubsystem::GetAllActivities() const
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto ActivityNodesDT = MetaGameSettings->ActivitiesDataTable.LoadSynchronous();
-
-	if (ActivityNodesDT == nullptr) return TArray<FMetaGame_MapNodeData>();
-	TArray<FMetaGame_MapNodeData*> ActivityNodesPrts;
-	ActivityNodesDT->GetAllRows<FMetaGame_MapNodeData>(TEXT("::SetupMap"), ActivityNodesPrts);
-	TArray<FMetaGame_MapNodeData> Activities;
-	for (const auto ActivityPtr : ActivityNodesPrts)
-	{
-		if (ActivityPtr != nullptr) Activities.Add(*ActivityPtr);
-	}
-	return Activities;
-}
-
-TArray<FMetaGame_MapNodeData> UMetaGameSubsystem::GetAllLoreNodes() const
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto LoreNodesDT = MetaGameSettings->LoreNodesDataTable.LoadSynchronous();
-
-	if (LoreNodesDT == nullptr) return TArray<FMetaGame_MapNodeData>();
-	TArray<FMetaGame_MapNodeData*> LoreNodesPrts;
-	LoreNodesDT->GetAllRows<FMetaGame_MapNodeData>(TEXT("::SetupMap"), LoreNodesPrts);
-	TArray<FMetaGame_MapNodeData> LoreNodes;
-	for (const auto LoreNodePtr : LoreNodesPrts)
-	{
-		if (LoreNodePtr != nullptr) LoreNodes.Add(*LoreNodePtr);
-	}
-	return LoreNodes;
-}
-
-TArray<FMetaGame_MapNodeData> UMetaGameSubsystem::GetAllMissionNodes() const
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto MissionNodesDT = MetaGameSettings->MissionNodesDataTable.LoadSynchronous();
-
-	if (MissionNodesDT == nullptr) return TArray<FMetaGame_MapNodeData>();
-	TArray<FMetaGame_MapNodeData*> MissionNodesPrts;
-	MissionNodesDT->GetAllRows<FMetaGame_MapNodeData>(TEXT("::SetupMap"), MissionNodesPrts);
-	TArray<FMetaGame_MapNodeData> MissionNodes;
-	for (const auto LoreNodePtr : MissionNodesPrts)
-	{
-		if (LoreNodePtr != nullptr) MissionNodes.Add(*LoreNodePtr);
-	}
-	return MissionNodes;
 }

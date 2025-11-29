@@ -36,7 +36,7 @@ void AMetaGame_MapNodeActor::UpdateNode()
 	if (auto* Widget = WidgetComponent->GetUserWidgetObject())
 	{
 		NodeWidget = Cast<UMetaMapNodeWidget>(Widget);
-		if (NodeWidget)
+		if (NodeWidget && NodeDataPtr)
 		{
 			NodeWidget->Set(*NodeDataPtr, NodeState, IsRequiredForTurn);
 		}
