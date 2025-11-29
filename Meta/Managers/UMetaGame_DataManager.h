@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "UMetaGame_DataManager.generated.h"
 
+struct FMetaGame_TurnData;
 struct FMetaGame_MapNodeData;
 
 UCLASS()
@@ -27,6 +28,9 @@ public:
 	bool IsMissionNodesContainsID(FName ID) const;
 	const FMetaGame_MapNodeData* GetMissionNode(FName ID) const;
 
+	int GetTurnsCount() const;
+	const FMetaGame_TurnData* GetTurnData(int Index) const;
+
 private:
 	UPROPERTY()
 	TArray<TObjectPtr<UDataTable>> LoadedTables;
@@ -35,7 +39,13 @@ private:
 	TMap<FName, const FMetaGame_MapNodeData*> CachedActivityNodes;
 	TMap<FName, const FMetaGame_MapNodeData*> CachedMissionNodes;
 	TMap<FName, const FMetaGame_MapNodeData*> CachedLoreNodes;
+	
+	TArray<const FMetaGame_TurnData*> CachedTurnData;
+	
 
 	template <typename T>
-	void CacheDataTable(TSoftObjectPtr<UDataTable> TableAsset, TMap<FName, const T*>& OutCache, FString ContextInfo);
+	void CacheDataTableToMap(TSoftObjectPtr<UDataTable> TableAsset, TMap<FName, const T*>& OutCache, FString ContextInfo);
+
+	template <typename T>
+	void CacheDataTableToArray(TSoftObjectPtr<UDataTable> TableAsset, TArray<const T*>& OutCache, FString ContextInfo);
 };

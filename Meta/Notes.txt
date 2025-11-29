@@ -1,11 +1,11 @@
 ﻿
-
+Done:
 	SquadPositionsDataTable;
 	ActivitiesDataTable;
 	LoreNodesDataTable;
 	MissionNodesDataTable;
 	LoreDataTable;
-	
+WIP:
 	TurnsDataTable;
 	RewardsDataTable;
 	ThreatsDataTable;

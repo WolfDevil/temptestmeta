@@ -346,11 +346,5 @@ private:
 
 	UPROPERTY()
 	UBaseMetaDialogueWidget* ShowedDialogueView;
-
-	TArray<FMetaGame_TurnData> GetAllTurns() const;
-	//
-	// TArray<FMetaGame_MapNodeData> GetAllLoreNodes() const;
-	//
-	// TArray<FMetaGame_MapNodeData> GetAllMissionNodes() const;
-
+	
 };

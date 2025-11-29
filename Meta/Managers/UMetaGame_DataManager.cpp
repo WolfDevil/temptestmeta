@@ -32,11 +32,13 @@ void UMetaGame_DataManager::Initialize()
 	CachedActivityNodes.Empty();
 	CachedLoreNodes.Empty();
 	CachedMissionNodes.Empty();
+	CachedTurnData.Empty();
 
-	CacheDataTable<FMetaGame_MapNodeData>(Settings->SquadPositionsDataTable, CachedSquadPositions, "SquadPositionsNodes");
-	CacheDataTable<FMetaGame_MapNodeData>(Settings->ActivitiesDataTable, CachedActivityNodes, "ActivityNodes");
-	CacheDataTable<FMetaGame_MapNodeData>(Settings->LoreNodesDataTable, CachedLoreNodes, "LoreNodes");
-	CacheDataTable<FMetaGame_MapNodeData>(Settings->MissionNodesDataTable, CachedMissionNodes, "MissionNodes");
+	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->SquadPositionsDataTable, CachedSquadPositions, "SquadPositionsNodes");
+	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->ActivitiesDataTable, CachedActivityNodes, "ActivityNodes");
+	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->LoreNodesDataTable, CachedLoreNodes, "LoreNodes");
+	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->MissionNodesDataTable, CachedMissionNodes, "MissionNodes");
+	CacheDataTableToArray<FMetaGame_TurnData>(Settings->TurnsDataTable, CachedTurnData, "MissionNodes");
 }
 
 const FMetaGame_MapNodeData* UMetaGame_DataManager::GetSquadPosition(FName ID) const
@@ -86,9 +88,20 @@ const FMetaGame_MapNodeData* UMetaGame_DataManager::GetMissionNode(FName ID) con
 	return Found ? *Found : nullptr;
 }
 
+int UMetaGame_DataManager::GetTurnsCount() const
+{
+	return CachedTurnData.Num();
+}
+
+const FMetaGame_TurnData* UMetaGame_DataManager::GetTurnData(int Index) const
+{
+	if (Index >= CachedTurnData.Num()) return nullptr;
+	return CachedTurnData[Index];
+}
+
 
 template <typename T>
-void UMetaGame_DataManager::CacheDataTable(TSoftObjectPtr<UDataTable> TableAsset, TMap<FName, const T*>& OutCache, FString ContextInfo)
+void UMetaGame_DataManager::CacheDataTableToMap(TSoftObjectPtr<UDataTable> TableAsset, TMap<FName, const T*>& OutCache, FString ContextInfo)
 {
 	UDataTable* DataTable = TableAsset.LoadSynchronous();
 
@@ -114,6 +127,37 @@ void UMetaGame_DataManager::CacheDataTable(TSoftObjectPtr<UDataTable> TableAsset
 			{
 				OutCache.Add(RowName, RowData);
 			}
+		}
+	}
+}
+
+template <typename T>
+void UMetaGame_DataManager::CacheDataTableToArray(TSoftObjectPtr<UDataTable> TableAsset, TArray<const T*>& OutCache, FString ContextInfo)
+{
+	UDataTable* DataTable = TableAsset.LoadSynchronous();
+
+	if (!DataTable)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MetaDataManager: Failed to load DataTable for %s"), *ContextInfo);
+		return;
+	}
+
+	LoadedTables.Add(DataTable);
+
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	RowNames.Sort([](const FName& A, const FName& B)
+	{
+		return A.LexicalLess(B);
+	});
+
+	OutCache.Reserve(RowNames.Num());
+
+	for (const FName& RowName : RowNames)
+	{
+		if (uint8* RowDataPtr = DataTable->GetRowMap().FindRef(RowName))
+		{
+			const T* Data = reinterpret_cast<const T*>(RowDataPtr);
+			OutCache.Add(Data);
 		}
 	}
 }

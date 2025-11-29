@@ -237,8 +237,7 @@ bool UMetaGameSubsystem::CanShowFightersPanel()
 
 TArray<FMetaGame_FighterData> UMetaGameSubsystem::GetAvailableFighters(FName ActivityID)
 {
-	TArray<FMetaGame_FighterData> Fighters;
-	Fighters = GetTurnFighters();
+	TArray<FMetaGame_FighterData> Fighters = GetTurnFighters();
 	TArray<FMetaGame_FighterData> FightersToExclude;
 
 	for (auto Fighter : LockedUnitsForOneTurn)
@@ -273,10 +272,12 @@ TArray<FMetaGame_FighterData> UMetaGameSubsystem::GetAvailableFighters(FName Act
 
 TArray<FMetaGame_FighterData> UMetaGameSubsystem::GetTurnFighters()
 {
+	if (!ensure(DataManager)) return TArray<FMetaGame_FighterData>();
+
 	auto AllFightersData = GetAllFightersData();
-	auto Turns = GetAllTurns();
-	auto CurrentTurnData = Turns[CurrentTurnIndex];
-	auto FightersIDs = CurrentTurnData.AvailableFighterIDs;
+
+	const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
+	const auto FightersIDs = CurrentTurnData->AvailableFighterIDs;
 
 	TArray<FMetaGame_FighterData> Fighters;
 	for (auto FighterData : AllFightersData)
@@ -387,23 +388,14 @@ void UMetaGameSubsystem::RemoveGottenRewardNotificationFromLastTurn()
 
 void UMetaGameSubsystem::UpdateMap()
 {
-	ensure(DataManager);
-
+	if (!ensure(DataManager)) return;
 	if (MetaMapSubsystem == nullptr) return;
 
-	auto Turns = GetAllTurns();
-
-	// auto Activities = GetAllActivities();
-	// Activities.Append(GetAllLoreNodes());
-	// Activities.Append(GetAllMissionNodes());
-
-
-	if (Turns.Num() - 1 < CurrentTurnIndex) return;
-	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
-
+	if (DataManager->GetTurnsCount() - 1 < CurrentTurnIndex) return;
+	const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
 
 	TArray<const FMetaGame_MapNodeData*> MapNodes;
-	FName SquadPosNodeID = CurrentTurnData.SquadPositionNodeID;
+	const FName SquadPosNodeID = CurrentTurnData->SquadPositionNodeID;
 
 
 	const FMetaGame_MapNodeData* SquadNode = DataManager->GetSquadPosition(SquadPosNodeID);
@@ -414,11 +406,10 @@ void UMetaGameSubsystem::UpdateMap()
 
 	if (SquadNode->bShowHead)
 	{
-		if (Turns.Num() - 1 >= CurrentTurnIndex + 1)
+		if (DataManager->GetTurnsCount() - 1 >= CurrentTurnIndex + 1)
 		{
-			FMetaGame_TurnData HeadTurnData = Turns[CurrentTurnIndex + 1];
-
-			FName SquadPosID = HeadTurnData.SquadPositionNodeID;
+			const auto HeadTurnData = DataManager->GetTurnData(CurrentTurnIndex + 1);
+			const FName SquadPosID = HeadTurnData->SquadPositionNodeID;
 			const FMetaGame_MapNodeData* HeadSquadNode = DataManager->GetSquadPosition(SquadPosID);
 			if (HeadSquadNode == nullptr) return;
 			MapNodes.Add(HeadSquadNode);
@@ -432,10 +423,10 @@ void UMetaGameSubsystem::UpdateMap()
 
 		while (TurnIndex >= 0)
 		{
-			if (Turns.Num() - 1 >= TurnIndex)
+			if (DataManager->GetTurnsCount() - 1 >= TurnIndex)
 			{
-				FMetaGame_TurnData TailTurnData = Turns[TurnIndex];
-				FName SquadPosID = TailTurnData.SquadPositionNodeID;
+				const auto TailTurnData = DataManager->GetTurnData(TurnIndex);
+				const FName SquadPosID = TailTurnData->SquadPositionNodeID;
 				const FMetaGame_MapNodeData* TailHeadSquadNode = DataManager->GetSquadPosition(SquadPosID);
 				if (TailHeadSquadNode == nullptr) return;
 				MapNodes.Add(TailHeadSquadNode);
@@ -445,29 +436,26 @@ void UMetaGameSubsystem::UpdateMap()
 		}
 	}
 
-	if (DataManager != nullptr)
+	for (auto NodeID : CurrentTurnData->AvailableNodeIDs)
 	{
-		for (auto NodeID : CurrentTurnData.AvailableNodeIDs)
+		auto ActivityNodeData = DataManager->GetActivityNode(NodeID);
+		if (ActivityNodeData != nullptr)
 		{
-			auto ActivityNodeData = DataManager->GetActivityNode(NodeID);
-			if (ActivityNodeData != nullptr)
-			{
-				MapNodes.Add(ActivityNodeData);
-				continue;
-			}
+			MapNodes.Add(ActivityNodeData);
+			continue;
+		}
 
-			auto MissionNodeData = DataManager->GetMissionNode(NodeID);
-			if (MissionNodeData != nullptr)
-			{
-				MapNodes.Add(MissionNodeData);
-				continue;
-			}
+		auto MissionNodeData = DataManager->GetMissionNode(NodeID);
+		if (MissionNodeData != nullptr)
+		{
+			MapNodes.Add(MissionNodeData);
+			continue;
+		}
 
-			auto LoreNodeData = DataManager->GetLoreNode(NodeID);
-			if (LoreNodeData != nullptr)
-			{
-				MapNodes.Add(LoreNodeData);
-			}
+		auto LoreNodeData = DataManager->GetLoreNode(NodeID);
+		if (LoreNodeData != nullptr)
+		{
+			MapNodes.Add(LoreNodeData);
 		}
 	}
 
@@ -500,16 +488,17 @@ void UMetaGameSubsystem::UpdateMap()
 		}
 	}
 
-	MetaMapSubsystem->SetupMap(MapNodes, NodeStates, CurrentTurnData.RequiredNodeIDs);
+	MetaMapSubsystem->SetupMap(MapNodes, NodeStates, CurrentTurnData->RequiredNodeIDs);
 }
 
 void UMetaGameSubsystem::CheckTurnLore()
 {
-	auto Turns = GetAllTurns();
+	if (!ensure(DataManager)) return;
 
-	if (Turns.Num() - 1 < CurrentTurnIndex) return;
-	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
-	FName LoreID = CurrentTurnData.StartLoreID;
+
+	if (DataManager->GetTurnsCount() - 1 < CurrentTurnIndex) return;
+	const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
+	const FName LoreID = CurrentTurnData->StartLoreID;
 	if (LoreID.IsNone()) return;
 	if (CompletedLoreIDs.Contains(LoreID)) return;
 
@@ -519,11 +508,11 @@ void UMetaGameSubsystem::CheckTurnLore()
 
 void UMetaGameSubsystem::CheckTurnTutorial()
 {
-	auto Turns = GetAllTurns();
+	if (!ensure(DataManager)) return;
 
-	if (Turns.Num() - 1 < CurrentTurnIndex) return;
-	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
-	FName TutorialID = CurrentTurnData.TutorialID;
+	if (DataManager->GetTurnsCount() - 1 < CurrentTurnIndex) return;
+	const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
+	const FName TutorialID = CurrentTurnData->TutorialID;
 	if (TutorialID.IsNone()) return;
 
 	ShowTutorialWidget(TutorialID);
@@ -531,11 +520,11 @@ void UMetaGameSubsystem::CheckTurnTutorial()
 
 void UMetaGameSubsystem::CheckTurnDialogue()
 {
-	auto Turns = GetAllTurns();
+	if (!ensure(DataManager)) return;
 
-	if (Turns.Num() - 1 < CurrentTurnIndex) return;
-	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
-	FName DialogueID = CurrentTurnData.DialogueID;
+	if (DataManager->GetTurnsCount() - 1 < CurrentTurnIndex) return;
+	const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
+	const FName DialogueID = CurrentTurnData->DialogueID;
 	if (DialogueID.IsNone()) return;
 
 	ShowDialogue(DialogueID);
@@ -869,7 +858,7 @@ void UMetaGameSubsystem::IgnoreNotAssignedActivities()
 
 void UMetaGameSubsystem::StartMission()
 {
-	ensure(DataManager);
+	if (!ensure(DataManager)) return;
 	FMetaGame_PreparedActionData ActionData;
 
 	for (const auto& Action : ActionsToResolve)
@@ -1020,10 +1009,11 @@ void UMetaGameSubsystem::CloseLoreUI()
 
 void UMetaGameSubsystem::NextTurnClicked()
 {
-	auto NextTurnStatus = GetNextTurnStatus();
+	if (!ensure(DataManager)) return;
 
-	switch (NextTurnStatus)
+	switch (GetNextTurnStatus())
 	{
+	case EMetaGame_NextTurnStatus::InternalError:
 	case EMetaGame_NextTurnStatus::NoMoreTurns:
 		{
 			//Show Warning;
@@ -1036,8 +1026,8 @@ void UMetaGameSubsystem::NextTurnClicked()
 		}
 	case EMetaGame_NextTurnStatus::NotAssignedActivities:
 		{
-			const FMetaGame_TurnData CurrentTurnData = GetAllTurns()[CurrentTurnIndex];
-			auto RequiredActivities = CurrentTurnData.RequiredNodeIDs;
+			const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
+			auto RequiredActivities = CurrentTurnData->RequiredNodeIDs;
 
 			bool HasUnpreparedRequiredActions = false;
 			for (FName RequiredActivity : RequiredActivities)
@@ -1073,28 +1063,26 @@ void UMetaGameSubsystem::NextTurnClicked()
 
 void UMetaGameSubsystem::PerformNextTurn()
 {
-	ensure(DataManager);
+	if (!ensure(DataManager)) return;
 
 	RequestedNextTurn = false;
 	LockedUnitsForOneTurn.Empty();
 	ActionsToResolve.Empty();
 
-	auto Turns = GetAllTurns();
+	if (DataManager->GetTurnsCount() - 1 < CurrentTurnIndex) return;
+	const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
 
-	if (Turns.Num() - 1 < CurrentTurnIndex) return;
-	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
+	const FName SquadPosNodeID = CurrentTurnData->SquadPositionNodeID;
 
-	FName SquadPosNodeID = CurrentTurnData.SquadPositionNodeID;
-
-	auto SquadNode = DataManager->GetSquadPosition(SquadPosNodeID);
+	const auto SquadNode = DataManager->GetSquadPosition(SquadPosNodeID);
 	if (SquadNode == nullptr) return;
 
-	if (Turns.Num() - 1 < CurrentTurnIndex + 1) return;
-	FMetaGame_TurnData HeadTurnData = Turns[CurrentTurnIndex + 1];
+	if (DataManager->GetTurnsCount() - 1 < CurrentTurnIndex + 1) return;
+	const auto HeadTurnData = DataManager->GetTurnData(CurrentTurnIndex + 1);
 
-	FName NextSquadPosID = HeadTurnData.SquadPositionNodeID;
+	const FName NextSquadPosID = HeadTurnData->SquadPositionNodeID;
 
-	auto HeadSquadNode = DataManager->GetSquadPosition(NextSquadPosID);
+	const auto HeadSquadNode = DataManager->GetSquadPosition(NextSquadPosID);
 	if (HeadSquadNode == nullptr) return;
 
 
@@ -1122,16 +1110,15 @@ void UMetaGameSubsystem::NextTurnOnStart()
 
 EMetaGame_NextTurnStatus UMetaGameSubsystem::GetNextTurnStatus()
 {
-	ensure(DataManager);
+	if (!ensure(DataManager)) return EMetaGame_NextTurnStatus::InternalError;
 
-	TArray<FMetaGame_TurnData> Turns = GetAllTurns();
-	if (Turns.Num() - 1 < CurrentTurnIndex) return EMetaGame_NextTurnStatus::NoMoreTurns;
-	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
+	if (DataManager->GetTurnsCount() - 1 < CurrentTurnIndex) return EMetaGame_NextTurnStatus::NoMoreTurns;
+	const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
 
 	TArray<FName> MissionIDs = TArray<FName>();
 	TArray<FName> ActivityIDs = TArray<FName>();
 
-	for (auto& AvailableNode : CurrentTurnData.AvailableNodeIDs)
+	for (auto& AvailableNode : CurrentTurnData->AvailableNodeIDs)
 	{
 		if (DataManager->IsMissionNodesContainsID(AvailableNode)) MissionIDs.AddUnique(AvailableNode);
 		if (DataManager->IsActivityNodesContainsID(AvailableNode)) ActivityIDs.AddUnique(AvailableNode);
@@ -1140,7 +1127,7 @@ EMetaGame_NextTurnStatus UMetaGameSubsystem::GetNextTurnStatus()
 	bool AllMissionsPrepared = true;
 	for (FName MissionID : MissionIDs)
 	{
-		bool IsMissionPrepared = ActionsToResolve.ContainsByPredicate([MissionID](const FMetaGame_PreparedActionData& Data)
+		const bool IsMissionPrepared = ActionsToResolve.ContainsByPredicate([MissionID](const FMetaGame_PreparedActionData& Data)
 		{
 			return Data.ID == MissionID;
 		});
@@ -1152,7 +1139,7 @@ EMetaGame_NextTurnStatus UMetaGameSubsystem::GetNextTurnStatus()
 	bool AllActivitiesPrepared = true;
 	for (FName ActivityID : ActivityIDs)
 	{
-		bool IsActivityPrepared = ActionsToResolve.ContainsByPredicate([ActivityID](const FMetaGame_PreparedActionData& Data)
+		const bool IsActivityPrepared = ActionsToResolve.ContainsByPredicate([ActivityID](const FMetaGame_PreparedActionData& Data)
 		{
 			return Data.ID == ActivityID;
 		});
@@ -1166,11 +1153,10 @@ EMetaGame_NextTurnStatus UMetaGameSubsystem::GetNextTurnStatus()
 
 bool UMetaGameSubsystem::IsCurrentTurnHasMission()
 {
-	ensure(DataManager);
-	TArray<FMetaGame_TurnData> Turns = GetAllTurns();
-	FMetaGame_TurnData CurrentTurnData = Turns[CurrentTurnIndex];
+	if (!ensure(DataManager)) return false;
+	const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
 
-	for (const auto& AvailableNode : CurrentTurnData.AvailableNodeIDs)
+	for (const auto& AvailableNode : CurrentTurnData->AvailableNodeIDs)
 	{
 		if (DataManager->IsMissionNodesContainsID(AvailableNode)) return true;
 	}
@@ -1184,7 +1170,8 @@ int UMetaGameSubsystem::GetCurrentTurnIndex()
 
 bool UMetaGameSubsystem::IsCurrentTurnSquadPositionNode(FName ID)
 {
-	return GetAllTurns()[CurrentTurnIndex].SquadPositionNodeID == ID;
+	if (!ensure(DataManager)) return false;
+	return DataManager->GetTurnData(CurrentTurnIndex)->SquadPositionNodeID == ID;
 }
 
 void UMetaGameSubsystem::OnNodeClicked(FName ID)
@@ -1466,22 +1453,21 @@ void UMetaGameSubsystem::OnLoreScenarioClick(FName LoreID, FMetaGame_LoreScenari
 
 FMetaGame_MapNodeData UMetaGameSubsystem::GetNodeData(FName ID) const
 {
-	if (DataManager != nullptr)
+	if (!ensure(DataManager)) return FMetaGame_MapNodeData();
+
+	if (const auto ActivityNodeData = DataManager->GetActivityNode(ID); ActivityNodeData != nullptr)
 	{
-		if (const auto ActivityNodeData = DataManager->GetActivityNode(ID); ActivityNodeData != nullptr)
-		{
-			return *ActivityNodeData;
-		}
+		return *ActivityNodeData;
+	}
 
-		if (const auto MissionNodeData = DataManager->GetMissionNode(ID); MissionNodeData != nullptr)
-		{
-			return *MissionNodeData;
-		}
+	if (const auto MissionNodeData = DataManager->GetMissionNode(ID); MissionNodeData != nullptr)
+	{
+		return *MissionNodeData;
+	}
 
-		if (const auto LoreNodeData = DataManager->GetLoreNode(ID); LoreNodeData != nullptr)
-		{
-			return *LoreNodeData;
-		}
+	if (const auto LoreNodeData = DataManager->GetLoreNode(ID); LoreNodeData != nullptr)
+	{
+		return *LoreNodeData;
 	}
 
 	return FMetaGame_MapNodeData();
@@ -1681,31 +1667,11 @@ FString UMetaGameSubsystem::GetResourcesString()
 
 FText UMetaGameSubsystem::GetTurnDisplayName()
 {
-	auto Turns = GetAllTurns();
-	auto CurrentTurnData = Turns[CurrentTurnIndex];
-	return CurrentTurnData.TurnDisplayName;
+	if (!ensure(DataManager)) return FText::GetEmpty();
+	return DataManager->GetTurnData(CurrentTurnIndex)->TurnDisplayName;
 }
 
 TMap<FName, int> UMetaGameSubsystem::GetResources()
 {
 	return Resources;
-}
-
-
-TArray<FMetaGame_TurnData> UMetaGameSubsystem::GetAllTurns() const
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto TurnsDT = MetaGameSettings->TurnsDataTable.LoadSynchronous();
-
-	if (TurnsDT == nullptr) return TArray<FMetaGame_TurnData>();
-
-	TArray<FMetaGame_TurnData*> TurnPtrs;
-	TurnsDT->GetAllRows<FMetaGame_TurnData>(TEXT("UMetaGameSubsystem::SetupMap"), TurnPtrs);
-	TArray<FMetaGame_TurnData> Turns;
-	for (const auto TurnPtr : TurnPtrs)
-	{
-		if (TurnPtr != nullptr) Turns.Add(*TurnPtr);
-	}
-
-	return Turns;
 }
