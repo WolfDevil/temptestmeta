@@ -9,8 +9,8 @@
 #include "MetaMapNodeWidget.generated.h"
 
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeWidgetClicked, FName);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNodeWidgetClickedDynamic, FName, NodeID);
+DECLARE_MULTICAST_DELEGATE(FOnNodeWidgetClicked);
+// DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNodeWidgetClickedDynamic);
 
 UCLASS()
 class T01_API UMetaMapNodeWidget : public UCommonUserWidget
@@ -20,16 +20,5 @@ class T01_API UMetaMapNodeWidget : public UCommonUserWidget
 public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void Set(const FMetaGame_MapNodeData& Data, EMetaGame_MapNodeState State, bool IsRequiredForTurn);
-
-	UPROPERTY(BlueprintAssignable)
-	FOnNodeWidgetClickedDynamic OnNodeClickedDynamic;
-	FOnNodeWidgetClicked OnNodeClicked;
-
-protected:
-	UFUNCTION(BlueprintCallable)
-	void HandleButtonClicked();
-
-	FMetaGame_MapNodeData NodeData;
-	EMetaGame_MapNodeState NodeState;
 
 };

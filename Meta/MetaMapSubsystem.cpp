@@ -151,7 +151,7 @@ void UMetaMapSubsystem::SpawnNodes(TArray<const FMetaGame_MapNodeData*> InNodeDa
 		FRotator Rotation(0.0f, 0.0f, 0.0f);
 		FActorSpawnParameters SpawnInfo;
 		auto Actor = GetWorld()->SpawnActor<AMetaGame_MapNodeActor>(Class, Location, Rotation, SpawnInfo);
-		Actor->InitNode(*Node, *State, RequiredNodesForTurn.Contains(Node->ID));
+		Actor->InitNode(Node, *State, RequiredNodesForTurn.Contains(Node->ID));
 		SpawnedNodes.Add(Actor);
 
 		if (Node->NodeActionDataClass)

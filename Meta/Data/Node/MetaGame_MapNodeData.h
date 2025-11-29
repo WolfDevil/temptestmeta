@@ -40,9 +40,9 @@ struct FMetaGame_MapNodeData : public FTableRowBase
 	UPROPERTY(EditAnywhere, meta = (Category = "Squad Position", EditCondition = "NodeType == EMetaGame_MapNodeType::SquadPosition", EditConditionHides))
 	TArray<FVector> TransitionPoints;
 
-	UPROPERTY(BlueprintReadOnly, meta = (EditCondition = "false", EditConditionHides))
-	bool bIsMinorNode;
-
-	UPROPERTY(BlueprintReadOnly, meta = (EditCondition = "false", EditConditionHides))
-	int TurnIndex;
+	// UPROPERTY(BlueprintReadOnly, meta = (EditCondition = "false", EditConditionHides))
+	// bool bIsMinorNode;
+	//
+	// UPROPERTY(BlueprintReadOnly, meta = (EditCondition = "false", EditConditionHides))
+	// int TurnIndex;
 };

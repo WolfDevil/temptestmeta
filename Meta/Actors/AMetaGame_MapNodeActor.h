@@ -18,8 +18,8 @@ class T01_API AMetaGame_MapNodeActor : public AActor
 public:
 	AMetaGame_MapNodeActor();
 
-	UFUNCTION(BlueprintCallable)
-	void InitNode(const FMetaGame_MapNodeData& InData, EMetaGame_MapNodeState InState, bool InIsRequiredForTurn);
+	// UFUNCTION(BlueprintCallable)
+	void InitNode(const FMetaGame_MapNodeData* InData, EMetaGame_MapNodeState InState, bool InIsRequiredForTurn);
 
 	UFUNCTION(BlueprintCallable)
 	void SetState(EMetaGame_MapNodeState InState);
@@ -30,8 +30,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void UpdateScale(float NewMultiplier);
 
-	FName GetNodeID() const { return NodeData.ID; }
-	void OnClicked();
+	FName GetNodeID() const { return NodeDataPtr ? NodeDataPtr->ID : FName(); }
 
 protected:
 
@@ -45,8 +44,7 @@ protected:
 	UPROPERTY()
 	class UMetaMapNodeWidget* NodeWidget;
 
-	UPROPERTY(BlueprintReadOnly)
-	FMetaGame_MapNodeData NodeData;
+	const FMetaGame_MapNodeData* NodeDataPtr = nullptr;
 	
 	EMetaGame_MapNodeState NodeState;
 	bool IsRequiredForTurn;

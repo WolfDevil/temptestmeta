@@ -406,7 +406,7 @@ void UMetaGameSubsystem::UpdateMap()
 	if (DataManager == nullptr) return;
 	const FMetaGame_MapNodeData* SquadNode = DataManager->GetSquadPosition(SquadPosNodeID);
 	if (SquadNode == nullptr) return;
-	
+
 	MapNodes.Add(SquadNode);
 
 
@@ -455,7 +455,7 @@ void UMetaGameSubsystem::UpdateMap()
 
 		if (ActivityNodeData != nullptr)
 		{
-			ActivityNodeData->TurnIndex = CurrentTurnIndex;
+			// ActivityNodeData->TurnIndex = CurrentTurnIndex;
 			MapNodes.Add(ActivityNodeData);
 		}
 	}
@@ -1190,6 +1190,11 @@ bool UMetaGameSubsystem::IsCurrentTurnHasMission()
 int UMetaGameSubsystem::GetCurrentTurnIndex()
 {
 	return CurrentTurnIndex;
+}
+
+bool UMetaGameSubsystem::IsCurrentTurnSquadPositionNode(FName ID)
+{
+	return GetAllTurns()[CurrentTurnIndex].SquadPositionNodeID == ID;
 }
 
 void UMetaGameSubsystem::OnNodeClicked(FName ID)

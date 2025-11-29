@@ -225,6 +225,9 @@ public:
 	int GetCurrentTurnIndex();
 
 	UFUNCTION(BlueprintCallable)
+	bool IsCurrentTurnSquadPositionNode(FName ID);
+
+	UFUNCTION(BlueprintCallable)
 	void OnNodeClicked(FName ID);
 
 	UFUNCTION(BlueprintCallable)

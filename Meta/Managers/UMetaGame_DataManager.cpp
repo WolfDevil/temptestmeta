@@ -7,10 +7,14 @@
 
 // HACK: check if type T has ID
 template <typename T, typename = void>
-struct THasID : std::false_type {};
+struct THasID : std::false_type
+{
+};
 
 template <typename T>
-struct THasID<T, std::void_t<decltype(std::declval<T>().ID)>> : std::true_type {};
+struct THasID<T, std::void_t<decltype(std::declval<T>().ID)>> : std::true_type
+{
+};
 
 
 void UMetaGame_DataManager::Initialize()
@@ -37,7 +41,6 @@ const FMetaGame_MapNodeData* UMetaGame_DataManager::GetSquadPosition(FName ID) c
 }
 
 
-
 template <typename T>
 void UMetaGame_DataManager::CacheDataTable(TSoftObjectPtr<UDataTable> TableAsset, TMap<FName, const T*>& OutCache, FString ContextInfo)
 {
@@ -50,10 +53,6 @@ void UMetaGame_DataManager::CacheDataTable(TSoftObjectPtr<UDataTable> TableAsset
 	}
 
 	LoadedTables.Add(DataTable);
-
-	FString ContextString;
-	TArray<T*> Rows;
-	DataTable->GetAllRows<T>(ContextString, Rows);
 
 	for (auto It = DataTable->GetRowMap().CreateConstIterator(); It; ++It)
 	{
