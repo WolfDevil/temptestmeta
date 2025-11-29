@@ -6,6 +6,10 @@
 #include "UObject/Object.h"
 #include "UMetaGame_DataManager.generated.h"
 
+struct FMetaGame_SkillData;
+struct FMetaGame_FighterData;
+struct FMetaGame_ThreatData;
+struct FMetaGame_RewardData;
 struct FMetaGame_TurnData;
 struct FMetaGame_MapNodeData;
 
@@ -30,6 +34,18 @@ public:
 
 	int GetTurnsCount() const;
 	const FMetaGame_TurnData* GetTurnData(int Index) const;
+	
+	const FMetaGame_RewardData* GetRewardData(FName ID) const;
+	const TMap<FName, const FMetaGame_RewardData*>& GetCachedRewards() const { return CachedRewardsData; }
+
+	const FMetaGame_ThreatData* GetThreatData(FName ID) const;
+	const TMap<FName, const FMetaGame_ThreatData*>& GetCachedThreats() const { return CachedThreatsData; }
+	
+	const FMetaGame_FighterData* GetFighterData(FName ID) const;
+	const TMap<FName, const FMetaGame_FighterData*>& GetCachedFighters() const { return CachedFightersData; }
+
+	const FMetaGame_SkillData* GetSkill(FName ID, int32 Level) const;
+	const TArray<const FMetaGame_SkillData*>& GetAllSkills() const;
 
 private:
 	UPROPERTY()
@@ -39,8 +55,12 @@ private:
 	TMap<FName, const FMetaGame_MapNodeData*> CachedActivityNodes;
 	TMap<FName, const FMetaGame_MapNodeData*> CachedMissionNodes;
 	TMap<FName, const FMetaGame_MapNodeData*> CachedLoreNodes;
+	TMap<FName, const FMetaGame_RewardData*> CachedRewardsData;
+	TMap<FName, const FMetaGame_ThreatData*> CachedThreatsData;
+	TMap<FName, const FMetaGame_FighterData*> CachedFightersData;
 	
-	TArray<const FMetaGame_TurnData*> CachedTurnData;
+	TArray<const FMetaGame_TurnData*> CachedTurnsData;
+	TArray<const FMetaGame_SkillData*> CachedSkillsData;
 	
 
 	template <typename T>

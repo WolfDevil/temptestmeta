@@ -1,6 +1,10 @@
 #include "MetaGameSubsystem.h"
 
+#include "MetaMapSubsystem.h"
 #include "Data/EMetaGame_NextTurnStatus.h"
+#include "Data/MetaGame_PreparedActionData.h"
+#include "Data/MetaGame_TurnData.h"
+#include "Data/MetaGame_TutorialData.h"
 #include "Data/NodeActions/Activity/MetaGame_NodeAction_Activity.h"
 #include "Data/NodeActions/Activity/MetaGame_NodeAction_ActivityData.h"
 #include "Data/NodeActions/Base/MetaGame_NodeAction_BaseData.h"
@@ -15,7 +19,9 @@
 #include "T01/Core/Subsystem/Savegame/T01Save.h"
 #include "T01/Core/Subsystem/Savegame/T01SaveGameSubsystem.h"
 #include "T01/Utils/UIUtils.h"
+#include "Widgets/BaseMetaActivityWidget.h"
 #include "Widgets/BaseMetaLoreWidget.h"
+#include "Widgets/BaseMetaMissionWidget.h"
 
 
 bool UMetaGameSubsystem::CanBeSaved(FString& FailureReason) const
@@ -114,9 +120,6 @@ void UMetaGameSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Collection.InitializeDependency<UPoolSubsystem>();
 	MetaMapSubsystem = Collection.InitializeDependency<UMetaMapSubsystem>();
 
-	AllFighters.Empty();
-	AllFighters = GetAllFightersData();
-
 	const auto Settings = GetDefault<UMetaGameSettings>();
 
 	{
@@ -137,25 +140,33 @@ void UMetaGameSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		RequestedNextTurn = false;
 		Resources.Empty();
-		for (auto Reward : GetAllRewardsData())
+		if (DataManager)
 		{
-			if (Reward.Type == EMetaGame_RewardResourceType::Resource)
+			for (const auto& Pair : DataManager->GetCachedRewards())
 			{
-				Resources.Add(Reward.ID, 200);
+				const FMetaGame_RewardData* Reward = Pair.Value;
+				if (Reward && Reward->Type == EMetaGame_RewardResourceType::Resource)
+				{
+					Resources.Add(Reward->ID, 200); //TODO: Move "200" to meta settings.
+				}
 			}
 		}
 	}
 
 	auto RangerInventoryClass = Settings->RangerInventoryHolderClass.Get();
 	RangerInventories.Empty();
-	for (auto Fighter : AllFighters)
+	if (DataManager)
 	{
-		FVector Location = FVector::ZeroVector;
-		FRotator Rotation(0.0f, 0.0f, 0.0f);
-		FActorSpawnParameters SpawnInfo;
-		auto Actor = GetWorld()->SpawnActor<AMetaGame_RangerInventory>(RangerInventoryClass, Location, Rotation, SpawnInfo);
-		Actor->Initialize(Fighter.ID.ToString());
-		RangerInventories.Add(Fighter.ID, Actor);
+		auto AllFighters = DataManager->GetCachedFighters();
+		for (auto Fighter : AllFighters)
+		{
+			FVector Location = FVector::ZeroVector;
+			FRotator Rotation(0.0f, 0.0f, 0.0f);
+			FActorSpawnParameters SpawnInfo;
+			auto Actor = GetWorld()->SpawnActor<AMetaGame_RangerInventory>(RangerInventoryClass, Location, Rotation, SpawnInfo);
+			Actor->Initialize(Fighter.Value->ID.ToString());
+			RangerInventories.Add(Fighter.Value->ID, Actor);
+		}
 	}
 
 
@@ -274,18 +285,14 @@ TArray<FMetaGame_FighterData> UMetaGameSubsystem::GetTurnFighters()
 {
 	if (!ensure(DataManager)) return TArray<FMetaGame_FighterData>();
 
-	auto AllFightersData = GetAllFightersData();
-
 	const auto CurrentTurnData = DataManager->GetTurnData(CurrentTurnIndex);
 	const auto FightersIDs = CurrentTurnData->AvailableFighterIDs;
 
 	TArray<FMetaGame_FighterData> Fighters;
-	for (auto FighterData : AllFightersData)
+	for (const auto FighterID : FightersIDs)
 	{
-		if (FightersIDs.Contains(FighterData.ID))
-		{
-			Fighters.AddUnique(FighterData);
-		}
+		const auto FighterData = DataManager->GetFighterData(FighterID);
+		if (FighterData) Fighters.Add(*FighterData);
 	}
 
 	return Fighters;
@@ -319,11 +326,6 @@ FMetaGame_MapNodeData UMetaGameSubsystem::GetActivityThatOccupiedFighter(FName F
 	});
 	if (PreparedActivity == nullptr) return FMetaGame_MapNodeData();
 	return GetNodeData(PreparedActivity->ID);
-}
-
-TArray<FMetaGame_PreparedActionData> UMetaGameSubsystem::GetPendingActivities()
-{
-	return ActionsToResolve;
 }
 
 TArray<FMetaGame_RewardNotificationData> UMetaGameSubsystem::GetGottenRewards()
@@ -910,6 +912,7 @@ void UMetaGameSubsystem::ShowMissionUI(FName NodeID, bool& Success)
 	Success = false;
 
 	if (ShowedMissionView != nullptr) return;
+	if (!ensure(DataManager)) return;
 
 	const auto NodeData = GetNodeData(NodeID);
 	const auto NodeActionInstance = MetaMapSubsystem->GetNodeActionInstance(NodeID);
@@ -955,13 +958,10 @@ void UMetaGameSubsystem::ShowMissionUI(FName NodeID, bool& Success)
 		TArray<FMetaGame_FighterData> ForcedFightersData;
 		for (auto FighterID : DataAsset->ForcedFighters)
 		{
-			auto Found = AllFighters.FindByPredicate([FighterID](const FMetaGame_FighterData& Data)
+			const auto Fighter = DataManager->GetFighterData(FighterID);
+			if (Fighter)
 			{
-				return FighterID == Data.ID;
-			});
-			if (Found)
-			{
-				ForcedFightersData.Add(*Found);
+				ForcedFightersData.Add(*Fighter);
 			}
 		}
 
@@ -1294,24 +1294,11 @@ void UMetaGameSubsystem::QueueActivity(FName ID, const TArray<FMetaGame_FighterD
 	CloseMissionUI();
 }
 
-void UMetaGameSubsystem::RemoveFromPendingActivity(FName ID)
-{
-	int FoundIdx = -1;
-	for (int i = 0; i < ActionsToResolve.Num(); i++)
-	{
-		if (ActionsToResolve[i].ID.IsEqual(ID)) FoundIdx = i;
-	}
-	if (FoundIdx >= 0)
-	{
-		ActionsToResolve.RemoveAt(FoundIdx);
-		OnPendingActivitiesUpdatedDynamic.Broadcast();
-		OnPendingActivitiesUpdated.Broadcast();
-	}
-}
 
 void UMetaGameSubsystem::ResolveActivities()
 {
 	if (!MetaMapSubsystem) return;
+	if (!ensure(DataManager)) return;
 
 	TArray<FMetaGame_PreparedActionData> ResolvedActivities;
 	ResolvedActivities.Empty();
@@ -1362,8 +1349,8 @@ void UMetaGameSubsystem::ResolveActivities()
 
 				for (auto Reward : Rewards)
 				{
-					auto RewardData = GetRewardData(Reward.Key);
-					if (RewardData.Type == EMetaGame_RewardResourceType::Resource)
+					auto RewardData = DataManager->GetRewardData(Reward.Key);
+					if (RewardData->Type == EMetaGame_RewardResourceType::Resource)
 					{
 						if (Resources.Contains(Reward.Key))
 						{
@@ -1379,7 +1366,7 @@ void UMetaGameSubsystem::ResolveActivities()
 						for (int j = 0; j < Reward.Value; ++j)
 						{
 							ULootItemInstance* Item;
-							StorageInventory->InventoryComponent->TryAddItemWithAutoPlace(RewardData.ItemId, RewardData.ItemCount, EInventoryContainerType::Ground, EContainerItemUpdateReason::AutoPlaced, true, Item);
+							StorageInventory->InventoryComponent->TryAddItemWithAutoPlace(RewardData->ItemId, RewardData->ItemCount, EInventoryContainerType::Ground, EContainerItemUpdateReason::AutoPlaced, true, Item);
 						}
 					}
 				}
@@ -1473,121 +1460,32 @@ FMetaGame_MapNodeData UMetaGameSubsystem::GetNodeData(FName ID) const
 	return FMetaGame_MapNodeData();
 }
 
-TArray<FMetaGame_RewardData> UMetaGameSubsystem::GetAllRewardsData()
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto RewardsDT = MetaGameSettings->RewardsDataTable.LoadSynchronous();
-
-	if (RewardsDT == nullptr) return TArray<FMetaGame_RewardData>();
-
-	TArray<FMetaGame_RewardData*> RewardPtrs;
-	RewardsDT->GetAllRows<FMetaGame_RewardData>(TEXT("UMetaGameSubsystem::GetRewardData"), RewardPtrs);
-	TArray<FMetaGame_RewardData> Rewards;
-	for (const auto RewardPtr : RewardPtrs)
-	{
-		if (RewardPtr != nullptr) Rewards.Add(*RewardPtr);
-	}
-
-	return Rewards;
-}
-
 FMetaGame_RewardData UMetaGameSubsystem::GetRewardData(FName ID)
 {
-	auto AllRewards = GetAllRewardsData();
-	const auto FoundReward = AllRewards.FindByPredicate([ID](const FMetaGame_RewardData& RewardData)
-	{
-		return RewardData.ID == ID;
-	});
-
-	return FoundReward == nullptr
-		       ? FMetaGame_RewardData()
-		       : *FoundReward;
-}
-
-TArray<FMetaGame_FighterData> UMetaGameSubsystem::GetAllFightersData()
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto FightersDT = MetaGameSettings->FightersDataTable.LoadSynchronous();
-
-	if (FightersDT == nullptr) return TArray<FMetaGame_FighterData>();
-
-	TArray<FMetaGame_FighterData*> FighterPtrs;
-	FightersDT->GetAllRows<FMetaGame_FighterData>(TEXT("UMetaGameSubsystem::GetAllFightersData"), FighterPtrs);
-	TArray<FMetaGame_FighterData> Fighters;
-	for (const auto FighterPtr : FighterPtrs)
-	{
-		if (FighterPtr != nullptr) Fighters.Add(*FighterPtr);
-	}
-
-	return Fighters;
+	if (!DataManager) return FMetaGame_RewardData();
+	const FMetaGame_RewardData* Data = DataManager->GetRewardData(ID);
+	return Data ? *Data : FMetaGame_RewardData();
 }
 
 FMetaGame_FighterData UMetaGameSubsystem::GetFighterData(FName ID)
 {
-	const auto FoundFighter = AllFighters.FindByPredicate([ID](const FMetaGame_FighterData& FighterData)
-	{
-		return FighterData.ID == ID;
-	});
-
-	return FoundFighter == nullptr ? FMetaGame_FighterData() : *FoundFighter;
-}
-
-TArray<FMetaGame_ThreatData> UMetaGameSubsystem::GetAllThreatsData()
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto ThreatsDT = MetaGameSettings->ThreatsDataTable.LoadSynchronous();
-
-	if (ThreatsDT == nullptr) return TArray<FMetaGame_ThreatData>();
-
-	TArray<FMetaGame_ThreatData*> ThreatsPtrs;
-	ThreatsDT->GetAllRows<FMetaGame_ThreatData>(TEXT("UMetaGameSubsystem::GetAllThreatsData"), ThreatsPtrs);
-	TArray<FMetaGame_ThreatData> Threats;
-	for (const auto ThreatPtr : ThreatsPtrs)
-	{
-		if (ThreatPtr != nullptr) Threats.Add(*ThreatPtr);
-	}
-
-	return Threats;
+	if (!ensure(DataManager)) return FMetaGame_FighterData();
+	const auto Fighter = DataManager->GetFighterData(ID);
+	return Fighter == nullptr ? FMetaGame_FighterData() : *Fighter;
 }
 
 FMetaGame_ThreatData UMetaGameSubsystem::GetThreatData(FName ID)
 {
-	auto Threats = GetAllThreatsData();
-	const auto FoundThreat = Threats.FindByPredicate([ID](const FMetaGame_ThreatData& ThreatData)
-	{
-		return ThreatData.ID == ID;
-	});
-
-	return FoundThreat == nullptr ? FMetaGame_ThreatData() : *FoundThreat;
-}
-
-TArray<FMetaGame_SkillData> UMetaGameSubsystem::GetAllSkillsData()
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto SkillsDT = MetaGameSettings->SkillsDataTable.LoadSynchronous();
-
-	if (SkillsDT == nullptr) return TArray<FMetaGame_SkillData>();
-
-	TArray<FMetaGame_SkillData*> SkillsPtrs;
-	SkillsDT->GetAllRows<FMetaGame_SkillData>(TEXT("UMetaGameSubsystem::GetAllThreatsData"), SkillsPtrs);
-	TArray<FMetaGame_SkillData> Skills;
-	for (const auto SkillPtr : SkillsPtrs)
-	{
-		if (SkillPtr != nullptr) Skills.Add(*SkillPtr);
-	}
-
-	return Skills;
+	if (!ensure(DataManager)) return FMetaGame_ThreatData();
+	const auto Threat = DataManager->GetThreatData(ID);
+	return Threat == nullptr ? FMetaGame_ThreatData() : *Threat;
 }
 
 FMetaGame_SkillData UMetaGameSubsystem::GetSkillData(FName ID, int32 Level)
 {
-	auto Skills = GetAllSkillsData();
-	const auto FoundSkill = Skills.FindByPredicate([ID, Level](const FMetaGame_SkillData& SkillData)
-	{
-		return SkillData.ID == ID && SkillData.Level == Level;
-	});
-
-	return FoundSkill == nullptr ? FMetaGame_SkillData() : *FoundSkill;
+	if (!ensure(DataManager)) return FMetaGame_SkillData();
+	const FMetaGame_SkillData* Data = DataManager->GetSkill(ID, Level);
+	return Data ? *Data : FMetaGame_SkillData();
 }
 
 TArray<FMetaGame_LoreData> UMetaGameSubsystem::GetAllLoreData()
@@ -1646,23 +1544,6 @@ UDataTable* UMetaGameSubsystem::GetDialogueDataTable()
 {
 	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
 	return MetaGameSettings->DialoguesDataTable.LoadSynchronous();
-}
-
-
-FString UMetaGameSubsystem::GetResourcesString()
-{
-	FString ResourcesString = FString();
-	ResourcesString.Append("| ");
-
-	for (auto Resource : Resources)
-	{
-		ResourcesString.Append(Resource.Key.ToString());
-		ResourcesString.Append(": ");
-		ResourcesString.Append(FString::FromInt(Resource.Value));
-		ResourcesString.Append(" | ");
-	}
-
-	return ResourcesString;
 }
 
 FText UMetaGameSubsystem::GetTurnDisplayName()

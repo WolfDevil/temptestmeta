@@ -4,6 +4,7 @@
 #include "UMetaGame_DataManager.h"
 
 #include "T01/Core/Settings/Meta/MetaGameSettings.h"
+#include "T01/Core/Subsystem/Meta/Data/MetaGame_SkillData.h"
 
 // HACK: check if type T has ID
 template <typename T, typename = void>
@@ -32,13 +33,22 @@ void UMetaGame_DataManager::Initialize()
 	CachedActivityNodes.Empty();
 	CachedLoreNodes.Empty();
 	CachedMissionNodes.Empty();
-	CachedTurnData.Empty();
+	CachedRewardsData.Empty();
+	CachedThreatsData.Empty();
+	CachedFightersData.Empty();
 
 	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->SquadPositionsDataTable, CachedSquadPositions, "SquadPositionsNodes");
 	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->ActivitiesDataTable, CachedActivityNodes, "ActivityNodes");
 	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->LoreNodesDataTable, CachedLoreNodes, "LoreNodes");
 	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->MissionNodesDataTable, CachedMissionNodes, "MissionNodes");
-	CacheDataTableToArray<FMetaGame_TurnData>(Settings->TurnsDataTable, CachedTurnData, "MissionNodes");
+	CacheDataTableToMap<FMetaGame_RewardData>(Settings->RewardsDataTable, CachedRewardsData, "RewardsData");
+	CacheDataTableToMap<FMetaGame_ThreatData>(Settings->ThreatsDataTable, CachedThreatsData, "RewardsData");
+	CacheDataTableToMap<FMetaGame_FighterData>(Settings->FightersDataTable, CachedFightersData, "RewardsData");
+
+	CachedTurnsData.Empty();
+	CachedSkillsData.Empty();
+	CacheDataTableToArray<FMetaGame_TurnData>(Settings->TurnsDataTable, CachedTurnsData, "TurnData");
+	CacheDataTableToArray<FMetaGame_SkillData>(Settings->SkillsDataTable, CachedSkillsData, "TurnData");
 }
 
 const FMetaGame_MapNodeData* UMetaGame_DataManager::GetSquadPosition(FName ID) const
@@ -90,13 +100,51 @@ const FMetaGame_MapNodeData* UMetaGame_DataManager::GetMissionNode(FName ID) con
 
 int UMetaGame_DataManager::GetTurnsCount() const
 {
-	return CachedTurnData.Num();
+	return CachedTurnsData.Num();
 }
 
 const FMetaGame_TurnData* UMetaGame_DataManager::GetTurnData(int Index) const
 {
-	if (Index >= CachedTurnData.Num()) return nullptr;
-	return CachedTurnData[Index];
+	if (Index >= CachedTurnsData.Num()) return nullptr;
+	return CachedTurnsData[Index];
+}
+
+const FMetaGame_RewardData* UMetaGame_DataManager::GetRewardData(FName ID) const
+{
+	if (ID.IsNone()) return nullptr;
+	const FMetaGame_RewardData* const* Found = CachedRewardsData.Find(ID);
+	return Found ? *Found : nullptr;
+}
+
+const FMetaGame_ThreatData* UMetaGame_DataManager::GetThreatData(FName ID) const
+{
+	if (ID.IsNone()) return nullptr;
+	const FMetaGame_ThreatData* const* Found = CachedThreatsData.Find(ID);
+	return Found ? *Found : nullptr;
+}
+
+const FMetaGame_FighterData* UMetaGame_DataManager::GetFighterData(FName ID) const
+{
+	if (ID.IsNone()) return nullptr;
+	const FMetaGame_FighterData* const* Found = CachedFightersData.Find(ID);
+	return Found ? *Found : nullptr;
+}
+
+const FMetaGame_SkillData* UMetaGame_DataManager::GetSkill(FName ID, int32 Level) const
+{
+	const FMetaGame_SkillData* const* Found = CachedSkillsData.FindByPredicate(
+		[ID, Level](const FMetaGame_SkillData* Item)
+		{
+			return Item && Item->ID == ID && Item->Level == Level;
+		}
+	);
+
+	return Found ? *Found : nullptr;
+}
+
+const TArray<const FMetaGame_SkillData*>& UMetaGame_DataManager::GetAllSkills() const
+{
+	return CachedSkillsData;
 }
 
 

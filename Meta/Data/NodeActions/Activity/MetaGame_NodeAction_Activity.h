@@ -1,15 +1,14 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
-#include "T01/Core/Subsystem/Meta/Data/MetaGame_ActivityRewardBonusData.h"
-#include "T01/Core/Subsystem/Meta/Data/MetaGame_ActivityRewardStageData.h"
-#include "T01/Core/Subsystem/Meta/Data/MetaGame_FighterData.h"
-#include "T01/Core/Subsystem/Meta/Data/MetaGame_ThreatData.h"
 #include "T01/Core/Subsystem/Meta/Data/NodeActions/Base/MetaGame_NodeAction_Base.h"
 
 
 #include "MetaGame_NodeAction_Activity.generated.h"
 
+struct FMetaGame_ActivityRewardBonusData;
+struct FMetaGame_ActivityRewardStageData;
+struct FMetaGame_FighterData;
 /**
  * 
  */
@@ -27,20 +26,17 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void PrepareUIRewardsData(
 		const TArray<FMetaGame_FighterData>& Fighters,
-		
+
 		TArray<FMetaGame_ActivityRewardStageData>& ThreatRewards,
 		FMetaGame_ActivityRewardBonusData& BonusReward,
 		int& ClosedThreatsCount,
 		bool& BonusConditionMet,
 		bool& IsRequiredThreatsPassed
-		);
+	);
 
 	UFUNCTION(BlueprintCallable)
 	virtual void PrepareUIThreatsData(const TArray<FMetaGame_FighterData>& Fighters, TMap<FName, bool>& Threats, TArray<FName>& ClosedThreats);
 
 	UFUNCTION(BlueprintCallable)
 	bool IsFightersHasResolvingSkill(FName RequiredSkill, int32 RequiredLevel, const TArray<FMetaGame_FighterData>& Fighters) const;
-
-	UFUNCTION(BlueprintCallable)
-	TArray<FMetaGame_ThreatData> GetThreatsData();
 };

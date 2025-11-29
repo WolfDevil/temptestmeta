@@ -2,15 +2,15 @@
 Done:
 	SquadPositionsDataTable;
 	ActivitiesDataTable;
-	LoreNodesDataTable;
 	MissionNodesDataTable;
-	LoreDataTable;
-WIP:
-	TurnsDataTable;
+	LoreNodesDataTable;
 	RewardsDataTable;
 	ThreatsDataTable;
-	SkillsDataTable;
 	FightersDataTable;
+	TurnsDataTable;
+	SkillsDataTable;
+WIP:
+	LoreDataTable;
 	UnitTypesDataTable;
 	TutorialsDataTable;
 	DialoguesDataTable;

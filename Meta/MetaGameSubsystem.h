@@ -3,14 +3,16 @@
 #include "Actors/AMetaGame_RangerInventory.h"
 #include "Actors/AMetaGame_StorageInventory.h"
 #include "Data/EMetaGame_NextTurnStatus.h"
-#include "Data/MetaGame_PreparedActionData.h"
 #include "Data/MetaGame_FighterData.h"
-#include "Data/MetaGame_TurnData.h"
+#include "Data/MetaGame_PreparedActionData.h"
+#include "Data/MetaGame_RewardData.h"
 #include "Data/MetaGame_RewardNotificationData.h"
 #include "Data/MetaGame_SkillData.h"
 #include "Data/MetaGame_ThreatData.h"
 #include "Data/MetaGame_TutorialData.h"
+#include "Data/Node/MetaGame_MapNodeData.h"
 #include "Data/NodeActions/Lore/MetaGame_LoreData.h"
+#include "Data/NodeActions/Lore/MetaGame_LoreScenarioData.h"
 #include "T01/Core/Subsystem/Savegame/ISaveable.h"
 #include "T01/Core/Subsystem/Savegame/T01SaveModule_MetaProgression.h"
 #include "Widgets/BaseMetaActivityWidget.h"
@@ -18,10 +20,10 @@
 #include "Widgets/BaseMetaInventoryWidget.h"
 #include "Widgets/BaseMetaLoreWidget.h"
 #include "Widgets/BaseMetaMissionWidget.h"
-#include "Widgets/BaseMetaTutorialWidget.h"
 
 
 #include "MetaGameSubsystem.generated.h"
+
 
 class UMetaGame_DataManager;
 DECLARE_MULTICAST_DELEGATE(FMetaGameSubsystemStaticDelegate);
@@ -31,7 +33,7 @@ UCLASS()
 class T01_API UMetaGameSubsystem : public UWorldSubsystem, public ISaveable
 {
 	GENERATED_BODY()
-	
+
 public:
 	virtual bool CanBeSaved(FString& FailureReason) const override;
 	virtual void Save(UT01Save* SaveObject, void* ParentObject) override;
@@ -51,7 +53,6 @@ private:
 	bool bIsInitialized = false;
 
 public:
-
 	UPROPERTY(BlueprintAssignable, DisplayName = "OnPendingActivitiesUpdated")
 	FMetaGameSubsystemDynamicDelegate OnPendingActivitiesUpdatedDynamic;
 	FMetaGameSubsystemStaticDelegate OnPendingActivitiesUpdated;
@@ -71,12 +72,11 @@ public:
 	UPROPERTY(BlueprintAssignable, DisplayName = "OnTurnChanged")
 	FMetaGameSubsystemDynamicDelegate OnTurnChangedDynamic;
 	FMetaGameSubsystemStaticDelegate OnTurnChanged;
-	
+
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
-	// Геттер для менеджера (если другим классам нужен прямой доступ)
 	UFUNCTION(BlueprintCallable, Category = "Meta|Data")
 	UMetaGame_DataManager* GetDataManager() const { return DataManager; }
 
@@ -90,7 +90,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool CanShowFightersPanel();
-	
+
 	UFUNCTION(BlueprintCallable)
 	TArray<FMetaGame_FighterData> GetAvailableFighters(FName ActivityID);
 
@@ -102,9 +102,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	FMetaGame_MapNodeData GetActivityThatOccupiedFighter(FName FighterID) const;
-
-	UFUNCTION(BlueprintCallable)
-	TArray<FMetaGame_PreparedActionData> GetPendingActivities();
 
 	UFUNCTION(BlueprintCallable)
 	TArray<FMetaGame_RewardNotificationData> GetGottenRewards();
@@ -186,26 +183,26 @@ public:
 	void CloseTutorialWidget();
 
 	// Dialogues UI
-	
+
 	UFUNCTION(BlueprintCallable)
 	void ShowDialogue(FName DialogueID);
 
 	UFUNCTION(BlueprintCallable)
 	void CloseDialogue();
-	
+
 	//============================================================
 
 
 	UFUNCTION(BlueprintCallable)
 	bool IsFighterLockedForTurn(FName FighterID);
 
-	
+
 	UFUNCTION(BlueprintCallable)
 	void IgnoreNotAssignedActivities();
 
 	UFUNCTION(BlueprintCallable)
 	void StartMission();
-	
+
 	UFUNCTION(BlueprintCallable)
 	void NextTurnClicked();
 
@@ -240,9 +237,6 @@ public:
 	void QueueActivity(FName ID, const TArray<FMetaGame_FighterData>& Fighters);
 
 	UFUNCTION(BlueprintCallable)
-	void RemoveFromPendingActivity(FName ID);
-
-	UFUNCTION(BlueprintCallable)
 	void ResolveActivities();
 
 	UFUNCTION(BlueprintCallable)
@@ -252,22 +246,10 @@ public:
 	FMetaGame_MapNodeData GetNodeData(FName ID) const;
 
 	UFUNCTION(BlueprintCallable)
-	TArray<FMetaGame_RewardData> GetAllRewardsData();
-	
-	UFUNCTION(BlueprintCallable)
 	FMetaGame_RewardData GetRewardData(FName ID);
 
 	UFUNCTION(BlueprintCallable)
-	TArray<FMetaGame_FighterData> GetAllFightersData();
-	
-	UFUNCTION(BlueprintCallable)
 	FMetaGame_FighterData GetFighterData(FName ID);
-
-	UFUNCTION(BlueprintCallable)
-	TArray<FMetaGame_ThreatData> GetAllThreatsData();
-
-	UFUNCTION(BlueprintCallable)
-	TArray<FMetaGame_SkillData> GetAllSkillsData();
 
 	UFUNCTION(BlueprintCallable)
 	FMetaGame_ThreatData GetThreatData(FName ID);
@@ -277,21 +259,18 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	TArray<FMetaGame_LoreData> GetAllLoreData();
-	
+
 	UFUNCTION(BlueprintCallable)
 	FMetaGame_LoreData GetLoreData(FName ID);
 
 	UFUNCTION(BlueprintCallable)
 	TArray<FMetaGame_TutorialData> GetAllTutorialData();
-	
+
 	UFUNCTION(BlueprintCallable)
 	FMetaGame_TutorialData GetTutorialData(FName ID);
 
 	UFUNCTION(BlueprintCallable)
 	UDataTable* GetDialogueDataTable();
-
-	UFUNCTION(BlueprintCallable)
-	FString GetResourcesString();
 
 	UFUNCTION(BlueprintCallable)
 	FText GetTurnDisplayName();
@@ -302,9 +281,6 @@ public:
 protected:
 	UPROPERTY()
 	TObjectPtr<UMetaMapSubsystem> MetaMapSubsystem;
-	
-	UPROPERTY()
-	TArray<FMetaGame_FighterData> AllFighters;
 
 private:
 	UPROPERTY()
@@ -314,11 +290,11 @@ private:
 	AMetaGame_StorageInventory* StorageInventory;
 
 	bool RequestedNextTurn;
-	
+
 	int CurrentTurnIndex;
-	
+
 	TMap<FName, EMetaGame_MapNodeState> NodeStates;
-	
+
 	TArray<FMetaGame_PreparedActionData> ActionsToResolve;
 
 	TArray<FMetaGame_RewardNotificationData> GottenRewards;
@@ -346,5 +322,4 @@ private:
 
 	UPROPERTY()
 	UBaseMetaDialogueWidget* ShowedDialogueView;
-	
 };

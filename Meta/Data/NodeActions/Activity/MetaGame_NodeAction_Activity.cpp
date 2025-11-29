@@ -4,8 +4,8 @@
 #include "MetaGame_NodeAction_Activity.h"
 
 #include "MetaGame_NodeAction_ActivityData.h"
-#include "T01/Core/Settings/Meta/MetaGameSettings.h"
 #include "T01/Core/Subsystem/Meta/MetaGameSubsystem.h"
+#include "T01/Core/Subsystem/Meta/Managers/UMetaGame_DataManager.h"
 
 
 void UMetaGame_NodeAction_Activity::ExecuteNodeAction(UObject* Context)
@@ -36,34 +36,35 @@ void UMetaGame_NodeAction_Activity::ResolveActivity(const TArray<FMetaGame_Fight
 		return;
 	}
 
-	auto ThreatsData = GetThreatsData();
+	const UMetaGameSubsystem* MetaGame = GetWorld()->GetSubsystem<UMetaGameSubsystem>();
+	const UMetaGame_DataManager* DataManager = MetaGame ? MetaGame->GetDataManager() : nullptr;
+	if (!DataManager) return;
+
+
 	bool bAllThreatsPassed = true;
 	TArray<FName> PassedThreats;
 	PassedThreats.Empty();
 
 	TArray<FName> RequiredThreats;
 	RequiredThreats.Empty();
-	for (auto Thr : Data->Threats)
+	for (auto ThreatEntry : Data->Threats)
 	{
-		if (Thr.Value)
+		if (ThreatEntry.Value)
 		{
-			RequiredThreats.AddUnique(Thr.Key);
+			RequiredThreats.AddUnique(ThreatEntry.Key);
 		}
 	}
 
 	//Check all threats
-	for (const auto& Threat : Data->Threats)
+	for (const auto& ThreatEntry : Data->Threats)
 	{
-		const auto ThreatData = ThreatsData.FindByPredicate([Threat](const FMetaGame_ThreatData& ThreatData)
-		{
-			return ThreatData.ID == Threat.Key;
-		});
+		const FMetaGame_ThreatData* ThreatData = DataManager->GetThreatData(ThreatEntry.Key);
 
 		if (ThreatData)
 		{
 			if (IsFightersHasResolvingSkill(ThreatData->RequiredSkillID, ThreatData->RequiredSkillLevel, Fighters))
 			{
-				PassedThreats.Add(Threat.Key);
+				PassedThreats.Add(ThreatEntry.Key);
 			}
 			else
 			{
@@ -139,7 +140,9 @@ void UMetaGame_NodeAction_Activity::PrepareUIRewardsData(
 	UMetaGame_NodeAction_ActivityData* Data = Cast<UMetaGame_NodeAction_ActivityData>(DataAsset);
 	if (!Data) return;
 
-	auto ThreatsData = GetThreatsData();
+	const UMetaGameSubsystem* MetaGame = GetWorld()->GetSubsystem<UMetaGameSubsystem>();
+	const UMetaGame_DataManager* DataManager = MetaGame ? MetaGame->GetDataManager() : nullptr;
+	if (!DataManager) return;
 
 	TArray<FName> PassedThreats;
 	PassedThreats.Empty();
@@ -157,10 +160,7 @@ void UMetaGame_NodeAction_Activity::PrepareUIRewardsData(
 	bool bAllThreatsPassed = true;
 	for (const auto& Threat : Data->Threats)
 	{
-		const auto ThreatData = ThreatsData.FindByPredicate([Threat](const FMetaGame_ThreatData& ThreatData)
-		{
-			return ThreatData.ID == Threat.Key;
-		});
+		const FMetaGame_ThreatData* ThreatData = DataManager->GetThreatData(Threat.Key);
 
 		if (ThreatData)
 		{
@@ -204,15 +204,15 @@ void UMetaGame_NodeAction_Activity::PrepareUIThreatsData(const TArray<FMetaGame_
 	UMetaGame_NodeAction_ActivityData* Data = Cast<UMetaGame_NodeAction_ActivityData>(DataAsset);
 	if (!Data) return;
 
-	auto ThreatsData = GetThreatsData();
+	const UMetaGameSubsystem* MetaGame = GetWorld()->GetSubsystem<UMetaGameSubsystem>();
+	const UMetaGame_DataManager* DataManager = MetaGame ? MetaGame->GetDataManager() : nullptr;
+	if (!DataManager) return;
+
 	ClosedThreats.Empty();
 
 	for (const auto& Threat : Data->Threats)
 	{
-		const auto ThreatData = ThreatsData.FindByPredicate([Threat](const FMetaGame_ThreatData& D)
-		{
-			return D.ID == Threat.Key;
-		});
+		const FMetaGame_ThreatData* ThreatData = DataManager->GetThreatData(Threat.Key);
 
 		if (ThreatData)
 		{
@@ -229,7 +229,6 @@ void UMetaGame_NodeAction_Activity::PrepareUIThreatsData(const TArray<FMetaGame_
 
 bool UMetaGame_NodeAction_Activity::IsFightersHasResolvingSkill(FName RequiredSkill, int32 RequiredLevel, const TArray<FMetaGame_FighterData>& Fighters) const
 {
-	bool bSuccess = false;
 	for (auto Fighter : Fighters)
 	{
 		if (Fighter.Skills.Contains(RequiredSkill))
@@ -238,27 +237,10 @@ bool UMetaGame_NodeAction_Activity::IsFightersHasResolvingSkill(FName RequiredSk
 			{
 				if (*LVL >= RequiredLevel)
 				{
-					bSuccess = true;
 					return true;
 				}
 			}
 		}
 	}
-	return bSuccess;
-}
-
-TArray<FMetaGame_ThreatData> UMetaGame_NodeAction_Activity::GetThreatsData()
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	const auto ThreatsDT = MetaGameSettings->ThreatsDataTable.LoadSynchronous();
-
-	if (ThreatsDT == nullptr) return TArray<FMetaGame_ThreatData>();
-	TArray<FMetaGame_ThreatData*> ThreatRows;
-	ThreatsDT->GetAllRows<FMetaGame_ThreatData>(TEXT("::GetThreatsData"), ThreatRows);
-	TArray<FMetaGame_ThreatData> Threats;
-	for (const auto ThreatRow : ThreatRows)
-	{
-		if (ThreatRow != nullptr) Threats.Add(*ThreatRow);
-	}
-	return Threats;
+	return false;
 }

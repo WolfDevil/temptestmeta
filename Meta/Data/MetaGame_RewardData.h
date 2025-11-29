@@ -11,7 +11,6 @@ struct FMetaGame_RewardData : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName ID;
 
-	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EMetaGame_RewardResourceType Type;
 
