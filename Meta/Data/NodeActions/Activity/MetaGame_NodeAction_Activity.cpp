@@ -82,14 +82,8 @@ void UMetaGame_NodeAction_Activity::ResolveActivity(const TArray<FMetaGame_Fight
 	{
 		if (RewardStage.ClosedThreatsAmount <= PassedThreats.Num())
 		{
-			if (Rewards.Contains(RewardStage.RewardID))
-			{
-				Rewards[RewardStage.RewardID] += RewardStage.RewardAmount;
-			}
-			else
-			{
-				Rewards.Add(RewardStage.RewardID, RewardStage.RewardAmount);
-			}
+			int& CurrentAmount = Rewards.FindOrAdd(RewardStage.RewardID);
+			CurrentAmount += RewardStage.RewardAmount;
 		}
 	}
 

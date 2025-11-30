@@ -597,6 +597,7 @@ void UMetaGameSubsystem::ShowActivityUI(FName ID, bool& Success)
 
 void UMetaGameSubsystem::ShowLoreUI(FName LoreID, bool& Success)
 {
+	if (!ensure(DataManager)) return;
 	Success = false;
 
 	if (ShowedLoreView != nullptr) return;
@@ -615,8 +616,8 @@ void UMetaGameSubsystem::ShowLoreUI(FName LoreID, bool& Success)
 		return;
 	}
 
-	auto LoreData = GetLoreData(LoreID);
-	if (LoreData.ID != LoreID)
+	const auto LoreData = DataManager->GetLoreData(LoreID);
+	if (!LoreData)
 	{
 		Success = false;
 		return;
@@ -629,7 +630,7 @@ void UMetaGameSubsystem::ShowLoreUI(FName LoreID, bool& Success)
 		return;
 	}
 
-	Widget->Initialize(LoreData);
+	Widget->InitializeWidget(*LoreData);
 	Widget->AddToViewport(100);
 	ShowedLoreView = Widget;
 	Success = true;
@@ -773,9 +774,12 @@ void UMetaGameSubsystem::CloseFighterInventory()
 
 void UMetaGameSubsystem::ShowTutorialWidget(FName TutorialID)
 {
-	auto TutorialData = GetTutorialData(TutorialID);
-	if (TutorialData.Widget == nullptr) return;
-	UClass* WidgetClass = TutorialData.Widget.LoadSynchronous();
+	if (!ensure(DataManager)) return;
+
+	auto TutorialData = DataManager->GetTutorialData(TutorialID);
+	if (!TutorialData) return;
+	if (TutorialData->Widget == nullptr) return;
+	UClass* WidgetClass = TutorialData->Widget.LoadSynchronous();
 
 	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 	if (!WidgetClass || !PC)
@@ -810,8 +814,9 @@ bool UMetaGameSubsystem::IsFighterLockedForTurn(FName FighterID)
 
 void UMetaGameSubsystem::ShowDialogue(FName DialogueID)
 {
-	auto DialogueDT = GetDialogueDataTable();
-	ensure(DialogueDT);
+	if (!ensure(DataManager)) return;
+	auto DialogueDT = DataManager->GetDialoguesDataTable();
+	if (!ensure(DialogueDT)) return;
 
 	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
 	UClass* WidgetClass = MetaGameSettings->DialogueWidget.LoadSynchronous();
@@ -1486,64 +1491,6 @@ FMetaGame_SkillData UMetaGameSubsystem::GetSkillData(FName ID, int32 Level)
 	if (!ensure(DataManager)) return FMetaGame_SkillData();
 	const FMetaGame_SkillData* Data = DataManager->GetSkill(ID, Level);
 	return Data ? *Data : FMetaGame_SkillData();
-}
-
-TArray<FMetaGame_LoreData> UMetaGameSubsystem::GetAllLoreData()
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto LoreDT = MetaGameSettings->LoreDataTable.LoadSynchronous();
-
-	TArray<FMetaGame_LoreData*> LoreDataPtrs;
-	TArray<FMetaGame_LoreData> LoreDatas;
-	LoreDT->GetAllRows<FMetaGame_LoreData>(TEXT("UMetaGameSubsystem::GetAllLoreData"), LoreDataPtrs);
-	for (const auto LoreDataPtr : LoreDataPtrs)
-	{
-		if (LoreDataPtr != nullptr) LoreDatas.Add(*LoreDataPtr);
-	}
-	return LoreDatas;
-}
-
-FMetaGame_LoreData UMetaGameSubsystem::GetLoreData(FName ID)
-{
-	auto LoreDatas = GetAllLoreData();
-	const auto FoundLore = LoreDatas.FindByPredicate([ID](const FMetaGame_LoreData& LoreData)
-	{
-		return LoreData.ID == ID;
-	});
-
-	return FoundLore == nullptr ? FMetaGame_LoreData() : *FoundLore;
-}
-
-TArray<FMetaGame_TutorialData> UMetaGameSubsystem::GetAllTutorialData()
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	auto TutorialDT = MetaGameSettings->TutorialsDataTable.LoadSynchronous();
-
-	TArray<FMetaGame_TutorialData*> TutorialDataPtrs;
-	TArray<FMetaGame_TutorialData> TutorialDatas;
-	TutorialDT->GetAllRows<FMetaGame_TutorialData>(TEXT("UMetaGameSubsystem::GetAllTutorialData"), TutorialDataPtrs);
-	for (const auto TutorialDataPtr : TutorialDataPtrs)
-	{
-		if (TutorialDataPtr != nullptr) TutorialDatas.Add(*TutorialDataPtr);
-	}
-	return TutorialDatas;
-}
-
-FMetaGame_TutorialData UMetaGameSubsystem::GetTutorialData(FName ID)
-{
-	auto TutorialDatas = GetAllTutorialData();
-	const auto FoundTutorial = TutorialDatas.FindByPredicate([ID](const FMetaGame_TutorialData& TutorialData)
-	{
-		return TutorialData.ID == ID;
-	});
-
-	return FoundTutorial == nullptr ? FMetaGame_TutorialData() : *FoundTutorial;
-}
-
-UDataTable* UMetaGameSubsystem::GetDialogueDataTable()
-{
-	const UMetaGameSettings* MetaGameSettings = GetDefault<UMetaGameSettings>();
-	return MetaGameSettings->DialoguesDataTable.LoadSynchronous();
 }
 
 FText UMetaGameSubsystem::GetTurnDisplayName()

@@ -11,7 +11,6 @@
 #include "Data/MetaGame_ThreatData.h"
 #include "Data/MetaGame_TutorialData.h"
 #include "Data/Node/MetaGame_MapNodeData.h"
-#include "Data/NodeActions/Lore/MetaGame_LoreData.h"
 #include "Data/NodeActions/Lore/MetaGame_LoreScenarioData.h"
 #include "T01/Core/Subsystem/Savegame/ISaveable.h"
 #include "T01/Core/Subsystem/Savegame/T01SaveModule_MetaProgression.h"
@@ -256,22 +255,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	FMetaGame_SkillData GetSkillData(FName ID, int32 Level);
-
-	UFUNCTION(BlueprintCallable)
-	TArray<FMetaGame_LoreData> GetAllLoreData();
-
-	UFUNCTION(BlueprintCallable)
-	FMetaGame_LoreData GetLoreData(FName ID);
-
-	UFUNCTION(BlueprintCallable)
-	TArray<FMetaGame_TutorialData> GetAllTutorialData();
-
-	UFUNCTION(BlueprintCallable)
-	FMetaGame_TutorialData GetTutorialData(FName ID);
-
-	UFUNCTION(BlueprintCallable)
-	UDataTable* GetDialogueDataTable();
-
+	
 	UFUNCTION(BlueprintCallable)
 	FText GetTurnDisplayName();
 

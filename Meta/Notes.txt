@@ -1,4 +1,5 @@
 ﻿
+DataManager refactor:
 Done:
 	SquadPositionsDataTable;
 	ActivitiesDataTable;
@@ -9,8 +10,9 @@ Done:
 	FightersDataTable;
 	TurnsDataTable;
 	SkillsDataTable;
-WIP:
 	LoreDataTable;
-	UnitTypesDataTable;
 	TutorialsDataTable;
 	DialoguesDataTable;
+	
+	
+Need to move UI things to separate manager.

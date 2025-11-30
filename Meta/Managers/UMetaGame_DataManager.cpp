@@ -18,7 +18,7 @@ struct THasID<T, std::void_t<decltype(std::declval<T>().ID)>> : std::true_type
 };
 
 
-void UMetaGame_DataManager::Initialize()
+void UMetaGame_DataManager::Initialize() //TODO: Make async
 {
 	const UMetaGameSettings* Settings = GetDefault<UMetaGameSettings>();
 	if (!Settings)
@@ -36,6 +36,8 @@ void UMetaGame_DataManager::Initialize()
 	CachedRewardsData.Empty();
 	CachedThreatsData.Empty();
 	CachedFightersData.Empty();
+	CachedLoreData.Empty();
+	CachedTutorialData.Empty();
 
 	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->SquadPositionsDataTable, CachedSquadPositions, "SquadPositionsNodes");
 	CacheDataTableToMap<FMetaGame_MapNodeData>(Settings->ActivitiesDataTable, CachedActivityNodes, "ActivityNodes");
@@ -44,11 +46,15 @@ void UMetaGame_DataManager::Initialize()
 	CacheDataTableToMap<FMetaGame_RewardData>(Settings->RewardsDataTable, CachedRewardsData, "RewardsData");
 	CacheDataTableToMap<FMetaGame_ThreatData>(Settings->ThreatsDataTable, CachedThreatsData, "RewardsData");
 	CacheDataTableToMap<FMetaGame_FighterData>(Settings->FightersDataTable, CachedFightersData, "RewardsData");
+	CacheDataTableToMap<FMetaGame_LoreData>(Settings->LoreDataTable, CachedLoreData, "LoreData");
+	CacheDataTableToMap<FMetaGame_TutorialData>(Settings->LoreDataTable, CachedTutorialData, "LoreData");
 
 	CachedTurnsData.Empty();
 	CachedSkillsData.Empty();
 	CacheDataTableToArray<FMetaGame_TurnData>(Settings->TurnsDataTable, CachedTurnsData, "TurnData");
 	CacheDataTableToArray<FMetaGame_SkillData>(Settings->SkillsDataTable, CachedSkillsData, "TurnData");
+
+	CachedDialoguesDataTable = Settings->DialoguesDataTable.LoadSynchronous();
 }
 
 const FMetaGame_MapNodeData* UMetaGame_DataManager::GetSquadPosition(FName ID) const
@@ -145,6 +151,25 @@ const FMetaGame_SkillData* UMetaGame_DataManager::GetSkill(FName ID, int32 Level
 const TArray<const FMetaGame_SkillData*>& UMetaGame_DataManager::GetAllSkills() const
 {
 	return CachedSkillsData;
+}
+
+const FMetaGame_LoreData* UMetaGame_DataManager::GetLoreData(FName ID) const
+{
+	if (ID.IsNone()) return nullptr;
+	const FMetaGame_LoreData* const* Found = CachedLoreData.Find(ID);
+	return Found ? *Found : nullptr;
+}
+
+const FMetaGame_TutorialData* UMetaGame_DataManager::GetTutorialData(FName ID) const
+{
+	if (ID.IsNone()) return nullptr;
+	const FMetaGame_TutorialData* const* Found = CachedTutorialData.Find(ID);
+	return Found ? *Found : nullptr;
+}
+
+UDataTable* UMetaGame_DataManager::GetDialoguesDataTable() const
+{
+	return CachedDialoguesDataTable;
 }
 
 
